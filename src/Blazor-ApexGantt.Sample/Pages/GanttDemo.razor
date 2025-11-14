@@ -1,0 +1,45 @@
+@page "/gantt-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+
+<PageTitle>Gantt Demo</PageTitle>
+
+<h1>ApexGantt Demo</h1>
+
+<ApexGantt Options="@options" Tasks="@tasks" />
+
+@code {
+    private GanttOptions options = new()
+    {
+        Width = "100%",
+        Height = "500px",
+    };
+
+    private List<GanttTask> tasks = new()
+    {
+        new GanttTask
+        {
+            Id = "task1",
+            Name = "Project Planning",
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddDays(5),
+            Progress = 100
+        },
+        new GanttTask
+        {
+            Id = "task2",
+            Name = "Development",
+            StartTime = DateTime.Now.AddDays(5),
+            EndTime = DateTime.Now.AddDays(15),
+            Progress = 60
+        },
+        new GanttTask
+        {
+            Id = "task3",
+            Name = "Testing",
+            StartTime = DateTime.Now.AddDays(15),
+            EndTime = DateTime.Now.AddDays(20),
+            Progress = 30
+        }
+    };
+}

@@ -1,0 +1,122 @@
+@using Microsoft.JSInterop
+@using Blazor_ApexGantt.Interop
+@using Blazor_ApexGantt.Models
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<div id="@_chartId"></div>
+
+@code {
+    private string _chartId = $"gantt-{Guid.NewGuid():N}";
+    private ApexGanttInterop? _interop;
+    private bool _chartInitialized;
+
+    /// <summary>
+    /// gantt chart options and configuration
+    /// </summary>
+    [Parameter]
+    public GanttOptions Options { get; set; } = new();
+
+    /// <summary>
+    /// list of tasks to display
+    /// </summary>
+    [Parameter]
+    public List<GanttTask>? Tasks { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interop = new ApexGanttInterop(JSRuntime);
+            await InitializeChartAsync();
+        }
+    }
+
+    private async Task InitializeChartAsync()
+    {
+        if (_interop == null) return;
+
+        // build chart options
+        var chartOptions = BuildChartOptions();
+
+        _chartInitialized = await _interop.InitAsync(_chartId, chartOptions);
+    }
+
+    private object BuildChartOptions()
+    {
+        // create options object to pass to apexgantt
+        var options = new Dictionary<string, object>();
+
+        if (Options.Height != null)
+            options["height"] = Options.Height;
+
+        if (Options.Width != null)
+            options["width"] = Options.Width;
+
+        if (!string.IsNullOrEmpty(Options.Title))
+            options["title"] = Options.Title;
+
+        if (Options.TasksContainerWidth.HasValue)
+            options["tasksContainerWidth"] = Options.TasksContainerWidth.Value;
+
+        if (!string.IsNullOrEmpty(Options.ViewMode))
+            options["viewMode"] = Options.ViewMode;
+
+        if (Options.EnableExport.HasValue)
+            options["enableExport"] = Options.EnableExport.Value;
+
+        if (Options.EnableResize.HasValue)
+            options["enableResize"] = Options.EnableResize.Value;
+
+        if (Options.CustomOptions != null)
+        {
+            foreach (var kvp in Options.CustomOptions)
+            {
+                options[kvp.Key] = kvp.Value;
+            }
+        }
+
+        // convert and add tasks in apexgantt format
+        var taskList = Tasks ?? Options.Tasks;
+        if (taskList != null && taskList.Any())
+        {
+            var formattedTasks = taskList.Select(t => new Dictionary<string, object?>
+            {
+                ["id"] = t.Id,
+                ["name"] = t.Name,
+                ["startTime"] = FormatDate(t.StartTime),
+                ["endTime"] = FormatDate(t.EndTime),
+                ["progress"] = t.Progress,
+                ["parentId"] = t.ParentId
+            }).ToList();
+
+            options["series"] = formattedTasks;
+        }
+
+        return options;
+    }
+
+    private string? FormatDate(object? date)
+    {
+        if (date == null) return null;
+
+        // if already a string, return as-is
+        if (date is string dateStr)
+            return dateStr;
+
+        // if DateTime, convert to MM-DD-YYYY format
+        if (date is DateTime dateTime)
+            return dateTime.ToString("MM-dd-yyyy");
+
+        return date.ToString();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_interop != null && _chartInitialized)
+        {
+            await _interop.DestroyAsync(_chartId);
+            await _interop.DisposeAsync();
+        }
+    }
+}
