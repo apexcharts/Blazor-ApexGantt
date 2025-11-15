@@ -1,0 +1,108 @@
+@page "/interactive-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+
+<PageTitle>Interactive Demo</PageTitle>
+
+<h1>ApexGantt Interactive Demo</h1>
+<p>Showcasing interactive features and user controls</p>
+
+<div class="mb-4">
+    <h3>Fully Interactive Gantt Chart</h3>
+    <p class="text-muted">Try dragging tasks, resizing them, and using the toolbar controls!</p>
+    <ApexGantt Options="@interactiveOptions" Tasks="@tasks" />
+</div>
+
+<div class="mt-4">
+    <h4>Interactive Features Enabled:</h4>
+    <ul>
+        <li><strong>Toolbar:</strong> Enabled - provides view mode switching and other controls</li>
+        <li><strong>Task Drag:</strong> Enabled - drag tasks to reschedule them</li>
+        <li><strong>Task Edit:</strong> Enabled - click tasks to edit details</li>
+        <li><strong>Task Resize:</strong> Enabled - resize tasks to adjust duration</li>
+        <li><strong>Export:</strong> Enabled - export chart to image formats</li>
+        <li><strong>Sidebar Resize:</strong> Enabled - adjust the task list width</li>
+    </ul>
+</div>
+
+@code {
+    private GanttOptions interactiveOptions = new()
+    {
+        Width = "100%",
+        Height = "600px",
+        ViewMode = "week",
+
+        // Interactivity Options - All Enabled
+        EnableToolbar = true,
+        EnableTaskDrag = true,
+        EnableTaskEdit = true,
+        EnableTaskResize = true,
+        EnableExport = true,
+        EnableResize = true,
+
+        // Styling for better UX
+        BarBorderRadius = 6,
+        RowHeight = 45,
+        BarBackgroundColor = "#3b82f6"
+    };
+
+    private List<GanttTask> tasks = new()
+    {
+        new GanttTask
+        {
+            Id = "project-kickoff",
+            Name = "Project Kickoff",
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddDays(2),
+            Progress = 100
+        },
+        new GanttTask
+        {
+            Id = "requirements",
+            Name = "Requirements Gathering",
+            StartTime = DateTime.Now.AddDays(2),
+            EndTime = DateTime.Now.AddDays(7),
+            Progress = 80
+        },
+        new GanttTask
+        {
+            Id = "design",
+            Name = "Design & Architecture",
+            StartTime = DateTime.Now.AddDays(7),
+            EndTime = DateTime.Now.AddDays(14),
+            Progress = 60
+        },
+        new GanttTask
+        {
+            Id = "backend-dev",
+            Name = "Backend Development",
+            StartTime = DateTime.Now.AddDays(14),
+            EndTime = DateTime.Now.AddDays(28),
+            Progress = 40
+        },
+        new GanttTask
+        {
+            Id = "frontend-dev",
+            Name = "Frontend Development",
+            StartTime = DateTime.Now.AddDays(14),
+            EndTime = DateTime.Now.AddDays(28),
+            Progress = 35
+        },
+        new GanttTask
+        {
+            Id = "integration",
+            Name = "Integration Testing",
+            StartTime = DateTime.Now.AddDays(28),
+            EndTime = DateTime.Now.AddDays(35),
+            Progress = 15
+        },
+        new GanttTask
+        {
+            Id = "deployment",
+            Name = "Deployment & Go-Live",
+            StartTime = DateTime.Now.AddDays(35),
+            EndTime = DateTime.Now.AddDays(38),
+            Progress = 0
+        }
+    };
+}

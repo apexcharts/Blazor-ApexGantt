@@ -1,0 +1,92 @@
+@page "/styling-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+
+<PageTitle>Styling Demo</PageTitle>
+
+<h1>ApexGantt Styling Demo</h1>
+<p>Showcasing visual and appearance customization options</p>
+
+<div class="mb-4">
+    <h3>Custom Bar Styling</h3>
+    <ApexGantt Options="@stylingOptions" Tasks="@tasks" />
+</div>
+
+<div class="mt-4">
+    <h4>Customizations Applied:</h4>
+    <ul>
+        <li><strong>Bar Background Color:</strong> #6366f1 (indigo)</li>
+        <li><strong>Bar Border Radius:</strong> 8px</li>
+        <li><strong>Bar Margin:</strong> 4px top/bottom</li>
+        <li><strong>Bar Text Color:</strong> White</li>
+        <li><strong>Row Height:</strong> 50px</li>
+        <li><strong>Row Background Colors:</strong> Alternating light gray and white</li>
+        <li><strong>Task-Specific Colors:</strong> Each task has its own color</li>
+    </ul>
+</div>
+
+@code {
+    private GanttOptions stylingOptions = new()
+    {
+        Width = "100%",
+        Height = "500px",
+        ViewMode = "day",
+
+        // Visual/Appearance Options
+        BarBackgroundColor = "#6366f1",
+        BarBorderRadius = 8,
+        BarMargin = 4,
+        BarTextColor = "#ffffff",
+        RowHeight = 50,
+        RowBackgroundColors = new List<string> { "#f9fafb", "#ffffff" }
+    };
+
+    private List<GanttTask> tasks = new()
+    {
+        new GanttTask
+        {
+            Id = "task1",
+            Name = "Design Phase",
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddDays(5),
+            Progress = 100,
+            Color = "#10b981" // emerald green
+        },
+        new GanttTask
+        {
+            Id = "task2",
+            Name = "Development Sprint 1",
+            StartTime = DateTime.Now.AddDays(5),
+            EndTime = DateTime.Now.AddDays(12),
+            Progress = 75,
+            Color = "#3b82f6" // blue
+        },
+        new GanttTask
+        {
+            Id = "task3",
+            Name = "Development Sprint 2",
+            StartTime = DateTime.Now.AddDays(12),
+            EndTime = DateTime.Now.AddDays(19),
+            Progress = 45,
+            Color = "#8b5cf6" // purple
+        },
+        new GanttTask
+        {
+            Id = "task4",
+            Name = "Testing & QA",
+            StartTime = DateTime.Now.AddDays(19),
+            EndTime = DateTime.Now.AddDays(24),
+            Progress = 20,
+            Color = "#f59e0b" // amber
+        },
+        new GanttTask
+        {
+            Id = "task5",
+            Name = "Deployment",
+            StartTime = DateTime.Now.AddDays(24),
+            EndTime = DateTime.Now.AddDays(26),
+            Progress = 0,
+            Color = "#ef4444" // red
+        }
+    };
+}
