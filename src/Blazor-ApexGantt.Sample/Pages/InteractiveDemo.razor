@@ -13,18 +13,6 @@
     <ApexGantt Options="@interactiveOptions" Tasks="@tasks" />
 </div>
 
-<div class="mt-4">
-    <h4>Interactive Features Enabled:</h4>
-    <ul>
-        <li><strong>Toolbar:</strong> Enabled - provides view mode switching and other controls</li>
-        <li><strong>Task Drag:</strong> Enabled - drag tasks to reschedule them</li>
-        <li><strong>Task Edit:</strong> Enabled - click tasks to edit details</li>
-        <li><strong>Task Resize:</strong> Enabled - resize tasks to adjust duration</li>
-        <li><strong>Export:</strong> Enabled - export chart to image formats</li>
-        <li><strong>Sidebar Resize:</strong> Enabled - adjust the task list width</li>
-    </ul>
-</div>
-
 @code {
     private GanttOptions interactiveOptions = new()
     {
@@ -42,7 +30,7 @@
 
         // Styling for better UX
         BarBorderRadius = 6,
-        RowHeight = 45,
+        RowHeight = 35,
         BarBackgroundColor = "#3b82f6"
     };
 
