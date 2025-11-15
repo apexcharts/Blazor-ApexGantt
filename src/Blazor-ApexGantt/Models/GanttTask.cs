@@ -36,9 +36,9 @@ public class GanttTask
     public double? Progress { get; set; }
 
     /// <summary>
-    /// array of task IDs this task depends on
+    /// task id that this task depends on
     /// </summary>
-    public List<string>? Dependencies { get; set; }
+    public string? Dependency { get; set; }
 
     /// <summary>
     /// custom color for this specific task
