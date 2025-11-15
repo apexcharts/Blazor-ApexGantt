@@ -47,6 +47,7 @@
         // create options object to pass to apexgantt
         var options = new Dictionary<string, object>();
 
+        // Basic Options
         if (Options.Height != null)
             options["height"] = Options.Height;
 
@@ -62,12 +63,53 @@
         if (!string.IsNullOrEmpty(Options.ViewMode))
             options["viewMode"] = Options.ViewMode;
 
+        // Visual/Appearance Options
+        if (!string.IsNullOrEmpty(Options.CanvasStyle))
+            options["canvasStyle"] = Options.CanvasStyle;
+
+        if (!string.IsNullOrEmpty(Options.BarBackgroundColor))
+            options["barBackgroundColor"] = Options.BarBackgroundColor;
+
+        if (Options.BarBorderRadius.HasValue)
+            options["barBorderRadius"] = Options.BarBorderRadius.Value;
+
+        if (Options.BarMargin.HasValue)
+            options["barMargin"] = Options.BarMargin.Value;
+
+        if (!string.IsNullOrEmpty(Options.BarTextColor))
+            options["barTextColor"] = Options.BarTextColor;
+
+        if (Options.RowBackgroundColors != null && Options.RowBackgroundColors.Any())
+            options["rowBackgroundColors"] = Options.RowBackgroundColors;
+
+        // Layout Options
+        if (Options.RowHeight.HasValue)
+            options["rowHeight"] = Options.RowHeight.Value;
+
+        // Interactivity Options
+        if (Options.EnableToolbar.HasValue)
+            options["enableToolbar"] = Options.EnableToolbar.Value;
+
+        if (Options.EnableTaskDrag.HasValue)
+            options["enableTaskDrag"] = Options.EnableTaskDrag.Value;
+
+        if (Options.EnableTaskEdit.HasValue)
+            options["enableTaskEdit"] = Options.EnableTaskEdit.Value;
+
+        if (Options.EnableTaskResize.HasValue)
+            options["enableTaskResize"] = Options.EnableTaskResize.Value;
+
         if (Options.EnableExport.HasValue)
             options["enableExport"] = Options.EnableExport.Value;
 
         if (Options.EnableResize.HasValue)
             options["enableResize"] = Options.EnableResize.Value;
 
+        // Dependency/Arrow Options
+        if (!string.IsNullOrEmpty(Options.ArrowColor))
+            options["arrowColor"] = Options.ArrowColor;
+
+        // Custom Options (applied last to allow overrides)
         if (Options.CustomOptions != null)
         {
             foreach (var kvp in Options.CustomOptions)
@@ -80,14 +122,29 @@
         var taskList = Tasks ?? Options.Tasks;
         if (taskList != null && taskList.Any())
         {
-            var formattedTasks = taskList.Select(t => new Dictionary<string, object?>
+            var formattedTasks = taskList.Select(t =>
             {
-                ["id"] = t.Id,
-                ["name"] = t.Name,
-                ["startTime"] = FormatDate(t.StartTime),
-                ["endTime"] = FormatDate(t.EndTime),
-                ["progress"] = t.Progress,
-                ["parentId"] = t.ParentId
+                var task = new Dictionary<string, object?>
+                {
+                    ["id"] = t.Id,
+                    ["name"] = t.Name,
+                    ["startTime"] = FormatDate(t.StartTime),
+                    ["endTime"] = FormatDate(t.EndTime),
+                    ["progress"] = t.Progress,
+                    ["parentId"] = t.ParentId
+                };
+
+                // Add optional task properties
+                if (t.Dependencies != null && t.Dependencies.Any())
+                    task["dependencies"] = t.Dependencies;
+
+                if (!string.IsNullOrEmpty(t.Color))
+                    task["color"] = t.Color;
+
+                if (!string.IsNullOrEmpty(t.ClassName))
+                    task["className"] = t.ClassName;
+
+                return task;
             }).ToList();
 
             options["series"] = formattedTasks;

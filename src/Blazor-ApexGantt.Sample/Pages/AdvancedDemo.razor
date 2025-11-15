@@ -1,0 +1,208 @@
+@page "/advanced-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+
+<PageTitle>Advanced Demo</PageTitle>
+
+<h1>ApexGantt Advanced Demo</h1>
+<p>Comprehensive demonstration of all available features</p>
+
+<div class="mb-4">
+    <h3>Full-Featured Project Timeline</h3>
+    <p class="text-muted">
+        This demo combines all features: custom styling, interactivity, dependencies, and more!
+    </p>
+    <ApexGantt Options="@advancedOptions" Tasks="@tasks" />
+</div>
+
+<div class="mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Visual Features:</h4>
+            <ul>
+                <li>Custom bar colors per task</li>
+                <li>Rounded bar corners (10px)</li>
+                <li>Custom bar margins</li>
+                <li>Alternating row backgrounds</li>
+                <li>Increased row height (55px)</li>
+                <li>Custom arrow color for dependencies</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h4>Interactive Features:</h4>
+            <ul>
+                <li>Full toolbar with controls</li>
+                <li>Drag tasks to reschedule</li>
+                <li>Resize task duration</li>
+                <li>Edit task details</li>
+                <li>Export functionality</li>
+                <li>Resizable task list sidebar</li>
+            </ul>
+        </div>
+    </div>
+
+    <h4 class="mt-3">Project Structure:</h4>
+    <ul>
+        <li><strong>Phase 1:</strong> Planning & Design (Tasks 1-3)</li>
+        <li><strong>Phase 2:</strong> Development (Tasks 4-7, parallel workstreams)</li>
+        <li><strong>Phase 3:</strong> Integration & Testing (Tasks 8-9)</li>
+        <li><strong>Phase 4:</strong> Deployment & Launch (Tasks 10-11)</li>
+    </ul>
+
+    <div class="alert alert-info mt-3">
+        <strong>Pro Tip:</strong> This example demonstrates a real-world project workflow with
+        multiple parallel tasks, dependencies, and milestones. The color coding helps identify
+        different work streams (green=planning, blue=backend, purple=frontend, orange=testing,
+        red=deployment).
+    </div>
+</div>
+
+@code {
+    private GanttOptions advancedOptions = new()
+    {
+        // Basic Configuration
+        Width = "100%",
+        Height = "700px",
+        Title = "Software Development Project - Q1 2025",
+        ViewMode = "week",
+        TasksContainerWidth = 300,
+
+        // Visual/Appearance Options
+        BarBorderRadius = 10,
+        BarMargin = 5,
+        BarTextColor = "#ffffff",
+        RowHeight = 55,
+        RowBackgroundColors = new List<string> { "#f8fafc", "#ffffff" },
+
+        // Interactivity Options (All Enabled)
+        EnableToolbar = true,
+        EnableTaskDrag = true,
+        EnableTaskEdit = true,
+        EnableTaskResize = true,
+        EnableExport = true,
+        EnableResize = true,
+
+        // Dependency Options
+        ArrowColor = "#6366f1"
+    };
+
+    private List<GanttTask> tasks = new()
+    {
+        // Phase 1: Planning & Design
+        new GanttTask
+        {
+            Id = "kickoff",
+            Name = "Project Kickoff Meeting",
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddDays(1),
+            Progress = 100,
+            Color = "#22c55e"
+        },
+        new GanttTask
+        {
+            Id = "requirements",
+            Name = "Requirements Gathering",
+            StartTime = DateTime.Now.AddDays(1),
+            EndTime = DateTime.Now.AddDays(7),
+            Progress = 100,
+            Dependencies = new List<string> { "kickoff" },
+            Color = "#16a34a"
+        },
+        new GanttTask
+        {
+            Id = "architecture",
+            Name = "Architecture Design",
+            StartTime = DateTime.Now.AddDays(7),
+            EndTime = DateTime.Now.AddDays(14),
+            Progress = 90,
+            Dependencies = new List<string> { "requirements" },
+            Color = "#15803d"
+        },
+
+        // Phase 2: Development (Parallel streams)
+        new GanttTask
+        {
+            Id = "database",
+            Name = "Database Schema Design",
+            StartTime = DateTime.Now.AddDays(14),
+            EndTime = DateTime.Now.AddDays(18),
+            Progress = 75,
+            Dependencies = new List<string> { "architecture" },
+            Color = "#3b82f6"
+        },
+        new GanttTask
+        {
+            Id = "api-development",
+            Name = "REST API Development",
+            StartTime = DateTime.Now.AddDays(18),
+            EndTime = DateTime.Now.AddDays(28),
+            Progress = 60,
+            Dependencies = new List<string> { "database" },
+            Color = "#2563eb"
+        },
+        new GanttTask
+        {
+            Id = "ui-design",
+            Name = "UI/UX Design",
+            StartTime = DateTime.Now.AddDays(14),
+            EndTime = DateTime.Now.AddDays(21),
+            Progress = 70,
+            Dependencies = new List<string> { "architecture" },
+            Color = "#8b5cf6"
+        },
+        new GanttTask
+        {
+            Id = "frontend-dev",
+            Name = "Frontend Development",
+            StartTime = DateTime.Now.AddDays(21),
+            EndTime = DateTime.Now.AddDays(35),
+            Progress = 50,
+            Dependencies = new List<string> { "ui-design" },
+            Color = "#7c3aed"
+        },
+
+        // Phase 3: Integration & Testing
+        new GanttTask
+        {
+            Id = "integration",
+            Name = "Frontend-Backend Integration",
+            StartTime = DateTime.Now.AddDays(35),
+            EndTime = DateTime.Now.AddDays(40),
+            Progress = 30,
+            Dependencies = new List<string> { "api-development", "frontend-dev" },
+            Color = "#f59e0b"
+        },
+        new GanttTask
+        {
+            Id = "testing",
+            Name = "QA & Testing",
+            StartTime = DateTime.Now.AddDays(40),
+            EndTime = DateTime.Now.AddDays(49),
+            Progress = 20,
+            Dependencies = new List<string> { "integration" },
+            Color = "#ea580c"
+        },
+
+        // Phase 4: Deployment & Launch
+        new GanttTask
+        {
+            Id = "deployment-prep",
+            Name = "Deployment Preparation",
+            StartTime = DateTime.Now.AddDays(49),
+            EndTime = DateTime.Now.AddDays(52),
+            Progress = 10,
+            Dependencies = new List<string> { "testing" },
+            Color = "#ef4444"
+        },
+        new GanttTask
+        {
+            Id = "go-live",
+            Name = "Production Go-Live",
+            StartTime = DateTime.Now.AddDays(52),
+            EndTime = DateTime.Now.AddDays(53),
+            Progress = 0,
+            Dependencies = new List<string> { "deployment-prep" },
+            Color = "#dc2626"
+        }
+    };
+}
