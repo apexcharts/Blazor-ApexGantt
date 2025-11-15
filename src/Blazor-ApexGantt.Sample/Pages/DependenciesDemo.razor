@@ -20,7 +20,7 @@
         <li><strong>Design:</strong> Depends on Requirements</li>
         <li><strong>Backend Development:</strong> Depends on Design</li>
         <li><strong>Frontend Development:</strong> Depends on Design</li>
-        <li><strong>API Integration:</strong> Depends on both Backend and Frontend</li>
+        <li><strong>API Integration:</strong> Depends on Frontend Development</li>
         <li><strong>Testing:</strong> Depends on API Integration</li>
         <li><strong>Deployment:</strong> Depends on Testing</li>
         <li><strong>Documentation:</strong> Depends on Deployment</li>
@@ -73,7 +73,7 @@
             StartTime = DateTime.Now.AddDays(3),
             EndTime = DateTime.Now.AddDays(8),
             Progress = 90,
-            Dependencies = new List<string> { "planning" },
+            Dependency = "planning",
             Color = "#3b82f6"
         },
         new GanttTask
@@ -83,7 +83,7 @@
             StartTime = DateTime.Now.AddDays(8),
             EndTime = DateTime.Now.AddDays(15),
             Progress = 70,
-            Dependencies = new List<string> { "requirements" },
+            Dependency = "requirements",
             Color = "#6366f1"
         },
         new GanttTask
@@ -93,7 +93,7 @@
             StartTime = DateTime.Now.AddDays(15),
             EndTime = DateTime.Now.AddDays(28),
             Progress = 50,
-            Dependencies = new List<string> { "design" },
+            Dependency = "design",
             Color = "#8b5cf6"
         },
         new GanttTask
@@ -103,7 +103,7 @@
             StartTime = DateTime.Now.AddDays(15),
             EndTime = DateTime.Now.AddDays(28),
             Progress = 45,
-            Dependencies = new List<string> { "design" },
+            Dependency = "design",
             Color = "#a855f7"
         },
         new GanttTask
@@ -113,7 +113,7 @@
             StartTime = DateTime.Now.AddDays(28),
             EndTime = DateTime.Now.AddDays(33),
             Progress = 30,
-            Dependencies = new List<string> { "backend", "frontend" },
+            Dependency = "frontend",
             Color = "#ec4899"
         },
         new GanttTask
@@ -123,7 +123,7 @@
             StartTime = DateTime.Now.AddDays(33),
             EndTime = DateTime.Now.AddDays(40),
             Progress = 20,
-            Dependencies = new List<string> { "integration" },
+            Dependency = "integration",
             Color = "#f59e0b"
         },
         new GanttTask
@@ -133,7 +133,7 @@
             StartTime = DateTime.Now.AddDays(40),
             EndTime = DateTime.Now.AddDays(42),
             Progress = 0,
-            Dependencies = new List<string> { "testing" },
+            Dependency = "testing",
             Color = "#ef4444"
         },
         new GanttTask
@@ -143,7 +143,7 @@
             StartTime = DateTime.Now.AddDays(42),
             EndTime = DateTime.Now.AddDays(45),
             Progress = 0,
-            Dependencies = new List<string> { "deployment" },
+            Dependency = "deployment",
             Color = "#06b6d4"
         }
     };

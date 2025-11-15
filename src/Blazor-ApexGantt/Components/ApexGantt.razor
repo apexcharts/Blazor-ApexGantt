@@ -135,8 +135,8 @@
                 };
 
                 // Add optional task properties
-                if (t.Dependencies != null && t.Dependencies.Any())
-                    task["dependencies"] = t.Dependencies;
+                if (!string.IsNullOrEmpty(t.Dependency))
+                    task["dependency"] = t.Dependency;
 
                 if (!string.IsNullOrEmpty(t.Color))
                     task["color"] = t.Color;
