@@ -1,6 +1,6 @@
 # Blazor-ApexGantt
 
-A comprehensive Blazor wrapper library for [ApexGantt](https://apexgantt.com), enabling developers to create interactive Gantt charts and project timeline visualizations in Blazor applications with full C# integration.
+A comprehensive Blazor wrapper library for [ApexGantt](https://apexcharts.com/apexgantt), enabling developers to create interactive Gantt charts and project timeline visualizations in Blazor applications with full C# integration.
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -27,11 +27,13 @@ dotnet add package Blazor-ApexGantt
 ### Manual Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/apexcharts/Blazor-ApexGantt.git
 ```
 
 2. Add a project reference to your Blazor application:
+
 ```xml
 <ProjectReference Include="..\Blazor-ApexGantt\Blazor-ApexGantt.csproj" />
 ```
@@ -336,19 +338,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Built on top of [ApexGantt](https://apexgantt.com) JavaScript library
+- Built on top of [ApexGantt](https://apexcharts.com/apexgantt) JavaScript library
 - Inspired by the Blazor community's component ecosystem
-- Thanks to all contributors
 
 ## Support
 
 - 📫 Report issues on [GitHub Issues](https://github.com/apexcharts/Blazor-ApexGantt/issues)
 - 💬 Join discussions on [GitHub Discussions](https://github.com/apexcharts/Blazor-ApexGantt/discussions)
-- 📖 View the [ApexGantt documentation](https://apexgantt.com/docs) for underlying library features
+- 📖 View the [ApexGantt documentation](https://apexcharts.com/apexgantt/docs/options/) for underlying library features
 
 ## Roadmap
 
-- [ ] NuGet package distribution
 - [ ] Additional event callbacks (OnTaskClick, OnTaskDrag, etc.)
 - [ ] Real-time data updates
 - [ ] Advanced filtering and grouping
