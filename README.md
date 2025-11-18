@@ -3,7 +3,6 @@
 A comprehensive Blazor wrapper library for [ApexGantt](https://apexcharts.com/apexgantt), enabling developers to create interactive Gantt charts and project timeline visualizations in Blazor applications with full C# integration.
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE)
 
 ## Features
 
@@ -336,7 +335,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE) file for details.
+See the [LICENSE](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE) file for details.
 
 ## Acknowledgments
 
