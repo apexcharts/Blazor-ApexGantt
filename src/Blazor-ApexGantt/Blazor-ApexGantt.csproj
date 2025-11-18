@@ -5,8 +5,28 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Blazor_ApexGantt</RootNamespace>
+    
+    <!-- nuget package metadata -->
+    <PackageId>Blazor-ApexGantt</PackageId>
+    <Title>Blazor ApexGantt</Title>
+    <Description>Blazor Wrapper for ApexGantt library - A powerful JavaScript Gantt chart library for creating interactive project timelines and task management visualizations.</Description>
+    <Authors>ApexCharts</Authors>
+    <Company>ApexCharts</Company>
+    <Copyright>Copyright © ApexCharts</Copyright>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/apexcharts/Blazor-ApexGantt</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/apexcharts/Blazor-ApexGantt</PackageProjectUrl>
+    <PackageTags>blazor;gantt;chart;apexgantt;project-management;timeline;visualization;webassembly</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
-
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />
@@ -14,6 +34,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="" />
+    <None Include="icon.png" Pack="true" PackagePath="" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>

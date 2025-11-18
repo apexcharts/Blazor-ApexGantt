@@ -96,3 +96,12 @@ PublishProfiles/
 *.temp
 *.log
 *.stackdump
+
+*.nupkg
+*.snupkg
+*.nuspec.bak
+
+**/packages/*
+!**/packages/build/
+
+local-nuget-feed/

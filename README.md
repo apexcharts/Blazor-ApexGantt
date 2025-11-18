@@ -3,7 +3,7 @@
 A comprehensive Blazor wrapper library for [ApexGantt](https://apexcharts.com/apexgantt), enabling developers to create interactive Gantt charts and project timeline visualizations in Blazor applications with full C# integration.
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE)
 
 ## Features
 
@@ -18,7 +18,7 @@ A comprehensive Blazor wrapper library for [ApexGantt](https://apexcharts.com/ap
 
 ## Installation
 
-### NuGet Package (Coming Soon)
+### NuGet Package
 
 ```bash
 dotnet add package Blazor-ApexGantt
@@ -40,17 +40,15 @@ git clone https://github.com/apexcharts/Blazor-ApexGantt.git
 
 ## Quick Start
 
-### 1. Register the Service
+### 1. Install ApexGantt JavaScript Library
 
-In your `Program.cs`:
+Add to your `wwwroot/index.html` (WebAssembly) or `Pages/_Host.cshtml` (Server):
 
-```csharp
-using Blazor_ApexGantt.Interop;
-
-builder.Services.AddScoped<ApexGanttInterop>();
+```html
+<script src="https://cdn.jsdelivr.net/npm/apexgantt@latest/dist/apexgantt.min.js"></script>
 ```
 
-### 2. Add Using Directive
+### 2. Add Using Directives
 
 In your component or `_Imports.razor`:
 
@@ -112,12 +110,12 @@ var options = new GanttOptions
     Width = "100%",
     Height = "600px",
     ViewMode = "week", // day, week, month, quarter, year
-    TasksContainerWidth = "30%",
+    TasksContainerWidth = 500,
 
     // Visual Styling
     BarBackgroundColor = "#3b82f6",
     BarTextColor = "#ffffff",
-    BarBorderRadius = "4px",
+    BarBorderRadius = 4,
     BarMargin = 10,
     RowHeight = 40,
     RowBackgroundColors = new List<string> { "#f9fafb", "#ffffff" },
@@ -247,7 +245,7 @@ Apply custom colors and styling:
         ViewMode = "month",
         BarBackgroundColor = "#1e293b",
         BarTextColor = "#f8fafc",
-        BarBorderRadius = "8px",
+        BarBorderRadius = 8,
         BarMargin = 15,
         RowHeight = 50,
         RowBackgroundColors = new List<string> { "#f1f5f9", "#ffffff" }
@@ -280,6 +278,8 @@ Run the demo:
 ```bash
 cd src/Blazor-ApexGantt.Sample
 dotnet run
+
+# Navigate to: https://localhost:5001 (or the port shown in console)
 ```
 
 Then navigate to the demo pages to see examples in action.
@@ -303,6 +303,7 @@ Blazor-ApexGantt/
 │   │
 │   └── Blazor-ApexGantt.Sample/       # Demo application
 │       └── Pages/                      # Demo pages
+├── LICENSE
 ├── README.md
 └── Blazor-ApexGantt.sln
 ```
@@ -312,6 +313,7 @@ Blazor-ApexGantt/
 - .NET 9.0 SDK or later
 - Blazor WebAssembly or Blazor Server application
 - Modern web browser with JavaScript enabled
+- ApexGantt JavaScript library (loaded via CDN or local)
 
 ## Browser Support
 
@@ -334,7 +336,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE) file for details.
 
 ## Acknowledgments
 
@@ -345,7 +347,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - 📫 Report issues on [GitHub Issues](https://github.com/apexcharts/Blazor-ApexGantt/issues)
 - 💬 Join discussions on [GitHub Discussions](https://github.com/apexcharts/Blazor-ApexGantt/discussions)
-- 📖 View the [ApexGantt documentation](https://apexcharts.com/apexgantt/docs/options/) for underlying library features
+- 📖 View the [ApexGantt documentation](https://apexcharts.com/apexgantt) for underlying library features
 
 ## Roadmap
 
