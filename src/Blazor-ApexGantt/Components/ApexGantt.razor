@@ -10,6 +10,7 @@
     private string _chartId = $"gantt-{Guid.NewGuid():N}";
     private ApexGanttInterop? _interop;
     private bool _chartInitialized;
+    private DotNetObjectReference<ApexGantt>? _dotNetRef;
 
     /// <summary>
     /// gantt chart options and configuration
@@ -23,10 +24,35 @@
     [Parameter]
     public List<GanttTask>? Tasks { get; set; }
 
+    /// <summary>
+    /// event fired when a task update is initiated
+    /// </summary>
+    [Parameter]
+    public EventCallback<TaskUpdateEventArgs> OnTaskUpdate { get; set; }
+
+    /// <summary>
+    /// event fired when a task update succeeds
+    /// </summary>
+    [Parameter]
+    public EventCallback<TaskUpdateSuccessEventArgs> OnTaskUpdateSuccess { get; set; }
+
+    /// <summary>
+    /// event fired when a task update fails
+    /// </summary>
+    [Parameter]
+    public EventCallback<TaskUpdateErrorEventArgs> OnTaskUpdateError { get; set; }
+
+    /// <summary>
+    /// event fired when task validation fails
+    /// </summary>
+    [Parameter]
+    public EventCallback<TaskValidationErrorEventArgs> OnTaskValidationError { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            _dotNetRef = DotNetObjectReference.Create(this);
             _interop = new ApexGanttInterop(JSRuntime);
             await InitializeChartAsync();
         }
@@ -39,7 +65,7 @@
         // build chart options
         var chartOptions = BuildChartOptions();
 
-        _chartInitialized = await _interop.InitAsync(_chartId, chartOptions);
+        _chartInitialized = await _interop.InitAsync(_chartId, chartOptions, _dotNetRef);
     }
 
     private object BuildChartOptions()
@@ -62,6 +88,9 @@
 
         if (!string.IsNullOrEmpty(Options.ViewMode))
             options["viewMode"] = Options.ViewMode;
+
+        if (!string.IsNullOrEmpty(Options.Theme))
+            options["theme"] = Options.Theme;
 
         // Visual/Appearance Options
         if (!string.IsNullOrEmpty(Options.CanvasStyle))
@@ -168,6 +197,54 @@
         return date.ToString();
     }
 
+    /// <summary>
+    /// called from JavaScript when task update event occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task HandleTaskUpdate(TaskUpdateEventArgs args)
+    {
+        if (OnTaskUpdate.HasDelegate)
+        {
+            await OnTaskUpdate.InvokeAsync(args);
+        }
+    }
+
+    /// <summary>
+    /// called from JavaScript when task update success event occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task HandleTaskUpdateSuccess(TaskUpdateSuccessEventArgs args)
+    {
+        if (OnTaskUpdateSuccess.HasDelegate)
+        {
+            await OnTaskUpdateSuccess.InvokeAsync(args);
+        }
+    }
+
+    /// <summary>
+    /// called from JavaScript when task update error event occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task HandleTaskUpdateError(TaskUpdateErrorEventArgs args)
+    {
+        if (OnTaskUpdateError.HasDelegate)
+        {
+            await OnTaskUpdateError.InvokeAsync(args);
+        }
+    }
+
+    /// <summary>
+    /// called from JavaScript when task validation error event occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task HandleTaskValidationError(TaskValidationErrorEventArgs args)
+    {
+        if (OnTaskValidationError.HasDelegate)
+        {
+            await OnTaskValidationError.InvokeAsync(args);
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_interop != null && _chartInitialized)
@@ -175,5 +252,7 @@
             await _interop.DestroyAsync(_chartId);
             await _interop.DisposeAsync();
         }
+
+        _dotNetRef?.Dispose();
     }
 }

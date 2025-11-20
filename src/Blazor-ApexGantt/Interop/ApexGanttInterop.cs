@@ -29,19 +29,46 @@ public class ApexGanttInterop : IAsyncDisposable
                 "document.head.appendChild(script); " +
                 "window.blazorApexGanttLoaded = true; }");
             
-            // small delay to ensure script loads
-            await Task.Delay(100);
+            // wait for the blazorApexGantt object to be available
+            await WaitForBlazorApexGanttAsync();
+            
             _initialized = true;
         }
     }
 
     /// <summary>
+    /// wait for blazorApexGantt to be available in window
+    /// </summary>
+    private async Task WaitForBlazorApexGanttAsync()
+    {
+        var maxAttempts = 50; // 5 seconds max
+        var attempts = 0;
+
+        while (attempts < maxAttempts)
+        {
+            var isAvailable = await _jsRuntime.InvokeAsync<bool>("eval", 
+                "typeof window.blazorApexGantt !== 'undefined'");
+
+            if (isAvailable)
+            {
+                return;
+            }
+
+            await Task.Delay(100);
+            attempts++;
+        }
+
+        throw new InvalidOperationException(
+            "blazorApexGantt script failed to load after 5 seconds");
+    }
+
+    /// <summary>
     /// initialize a new gantt chart
     /// </summary>
-    public async Task<bool> InitAsync(string elementId, object options)
+    public async Task<bool> InitAsync<T>(string elementId, object options, DotNetObjectReference<T>? dotNetRef = null) where T : class
     {
         await EnsureInitializedAsync();
-        return await _jsRuntime.InvokeAsync<bool>("blazorApexGantt.init", elementId, options);
+        return await _jsRuntime.InvokeAsync<bool>("blazorApexGantt.init", elementId, options, dotNetRef);
     }
 
     /// <summary>

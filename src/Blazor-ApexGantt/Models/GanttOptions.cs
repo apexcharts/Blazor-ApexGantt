@@ -31,6 +31,11 @@ public class GanttOptions
     public string? ViewMode { get; set; }
 
     /// <summary>
+    /// theme mode (light, dark)
+    /// </summary>
+    public string? Theme { get; set; }
+
+    /// <summary>
     /// list of tasks to display
     /// </summary>
     public List<GanttTask>? Tasks { get; set; }

@@ -1,0 +1,132 @@
+@page "/dark-theme-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+
+<PageTitle>Dark Theme Demo</PageTitle>
+
+<h1>ApexGantt Dark Theme Demo</h1>
+<p>Showcasing the built-in dark theme</p>
+
+<div class="mb-4">
+    <h3>Dark Theme Project Timeline</h3>
+    <p class="text-muted">
+        Using the native ApexGantt dark theme for a sleek, modern appearance
+    </p>
+    <ApexGantt Options="@darkThemeOptions" Tasks="@tasks" />
+</div>
+
+
+@code {
+    private GanttOptions darkThemeOptions = new()
+    {
+        Width = "100%",
+        Height = "600px",
+        ViewMode = "week",
+        
+        // enable dark theme
+        Theme = "dark",
+
+        // interactivity options
+        EnableToolbar = true,
+        EnableTaskDrag = true,
+        EnableTaskResize = true,
+        EnableTaskEdit = true,
+
+        // layout options
+        RowHeight = 32,
+        BarBorderRadius = 6
+    };
+
+    private List<GanttTask> tasks = new()
+    {
+        new GanttTask
+        {
+            Id = "research",
+            Name = "Market Research",
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddDays(5),
+            Progress = 100,
+            Color = "#10b981"
+        },
+        new GanttTask
+        {
+            Id = "planning",
+            Name = "Strategic Planning",
+            StartTime = DateTime.Now.AddDays(5),
+            EndTime = DateTime.Now.AddDays(10),
+            Progress = 85,
+            Dependency = "research",
+            Color = "#3b82f6"
+        },
+        new GanttTask
+        {
+            Id = "design-phase",
+            Name = "Design Phase",
+            StartTime = DateTime.Now.AddDays(10),
+            EndTime = DateTime.Now.AddDays(18),
+            Progress = 70,
+            Dependency = "planning",
+            Color = "#8b5cf6"
+        },
+        new GanttTask
+        {
+            Id = "prototype",
+            Name = "Prototype Development",
+            StartTime = DateTime.Now.AddDays(18),
+            EndTime = DateTime.Now.AddDays(25),
+            Progress = 55,
+            Dependency = "design-phase",
+            Color = "#ec4899"
+        },
+        new GanttTask
+        {
+            Id = "user-testing",
+            Name = "User Testing",
+            StartTime = DateTime.Now.AddDays(25),
+            EndTime = DateTime.Now.AddDays(30),
+            Progress = 40,
+            Dependency = "prototype",
+            Color = "#f59e0b"
+        },
+        new GanttTask
+        {
+            Id = "refinement",
+            Name = "Design Refinement",
+            StartTime = DateTime.Now.AddDays(30),
+            EndTime = DateTime.Now.AddDays(35),
+            Progress = 25,
+            Dependency = "user-testing",
+            Color = "#06b6d4"
+        },
+        new GanttTask
+        {
+            Id = "development",
+            Name = "Full Development",
+            StartTime = DateTime.Now.AddDays(35),
+            EndTime = DateTime.Now.AddDays(50),
+            Progress = 15,
+            Dependency = "refinement",
+            Color = "#6366f1"
+        },
+        new GanttTask
+        {
+            Id = "qa-testing",
+            Name = "QA & Testing",
+            StartTime = DateTime.Now.AddDays(50),
+            EndTime = DateTime.Now.AddDays(58),
+            Progress = 5,
+            Dependency = "development",
+            Color = "#f97316"
+        },
+        new GanttTask
+        {
+            Id = "launch",
+            Name = "Product Launch",
+            StartTime = DateTime.Now.AddDays(58),
+            EndTime = DateTime.Now.AddDays(60),
+            Progress = 0,
+            Dependency = "qa-testing",
+            Color = "#ef4444"
+        }
+    };
+}

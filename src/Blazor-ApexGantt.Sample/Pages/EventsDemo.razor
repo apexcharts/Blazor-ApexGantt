@@ -1,0 +1,259 @@
+@page "/events-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+
+<PageTitle>Events Demo</PageTitle>
+
+<h1>ApexGantt Events Demo</h1>
+<p>
+        Edit tasks to see events in action. Try changing task names, dates, or progress.
+</p>
+
+
+<div class="mb-4">
+    <ApexGantt 
+        Options="@eventsOptions" 
+        Tasks="@tasks"
+        OnTaskUpdate="@HandleTaskUpdate"
+        OnTaskUpdateSuccess="@HandleTaskUpdateSuccess"
+        OnTaskUpdateError="@HandleTaskUpdateError"
+        OnTaskValidationError="@HandleTaskValidationError" />
+</div>
+    
+
+<div>
+  <div class="card">
+      <div class="card-header">
+          <h5 class="mb-0">Event Log</h5>
+          <button class="btn btn-sm btn-outline-secondary" @onclick="ClearEventLog">Clear</button>
+      </div>
+      <div class="card-body event-log">
+          @if (!eventLog.Any())
+          {
+              <p class="text-muted">No events yet. Try editing a task!</p>
+          }
+          else
+          {
+              @foreach (var logEntry in eventLog.OrderByDescending(e => e.Timestamp))
+              {
+                  <div class="event-entry @logEntry.Type">
+                      <div class="event-type">@logEntry.Type</div>
+                      <div class="event-time">@logEntry.TimeFormatted</div>
+                      <div class="event-details">@logEntry.Message</div>
+                  </div>
+              }
+          }
+      </div>
+  </div>
+</div>
+
+<style>
+    .event-log {
+        max-height: 500px;
+        overflow-y: auto;
+        font-size: 0.875rem;
+    }
+    
+    .event-entry {
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        border-radius: 4px;
+        border-left: 4px solid;
+    }
+    
+    .event-entry.update {
+        background-color: #e3f2fd;
+        border-left-color: #2196f3;
+    }
+    
+    .event-entry.success {
+        background-color: #e8f5e9;
+        border-left-color: #4caf50;
+    }
+    
+    .event-entry.error {
+        background-color: #ffebee;
+        border-left-color: #f44336;
+    }
+    
+    .event-entry.validation {
+        background-color: #fff3e0;
+        border-left-color: #ff9800;
+    }
+    
+    .event-type {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .event-time {
+        font-size: 0.75rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+    }
+    
+    .event-details {
+        font-size: 0.875rem;
+    }
+    
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .stat-label {
+        font-weight: 500;
+    }
+    
+    .stat-value {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
+
+@code {
+    private GanttOptions eventsOptions = new()
+    {
+        Width = "100%",
+        Height = "450px",
+        ViewMode = "week",
+
+        // enable editing to trigger events
+        EnableToolbar = true,
+        EnableTaskDrag = true,
+        EnableTaskResize = true,
+        EnableTaskEdit = true,
+
+        // styling
+        BarBorderRadius = 6,
+        RowHeight = 32
+    };
+
+    private List<GanttTask> tasks = new()
+    {
+        new GanttTask
+        {
+            Id = "task1",
+            Name = "Planning Phase",
+            StartTime = DateTime.Now,
+            EndTime = DateTime.Now.AddDays(5),
+            Progress = 100,
+            Color = "#10b981"
+        },
+        new GanttTask
+        {
+            Id = "task2",
+            Name = "Development",
+            StartTime = DateTime.Now.AddDays(5),
+            EndTime = DateTime.Now.AddDays(15),
+            Progress = 60,
+            Dependency = "task1",
+            Color = "#3b82f6"
+        },
+        new GanttTask
+        {
+            Id = "task3",
+            Name = "Testing",
+            StartTime = DateTime.Now.AddDays(15),
+            EndTime = DateTime.Now.AddDays(20),
+            Progress = 30,
+            Dependency = "task2",
+            Color = "#8b5cf6"
+        },
+        new GanttTask
+        {
+            Id = "task4",
+            Name = "Deployment",
+            StartTime = DateTime.Now.AddDays(20),
+            EndTime = DateTime.Now.AddDays(22),
+            Progress = 0,
+            Dependency = "task3",
+            Color = "#ef4444"
+        }
+    };
+
+    private class EventLogEntry
+    {
+        public string Type { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public long Timestamp { get; set; }
+        public string TimeFormatted => DateTimeOffset.FromUnixTimeMilliseconds(Timestamp).LocalDateTime.ToString("HH:mm:ss");
+    }
+
+    private List<EventLogEntry> eventLog = new();
+    private int updateCount = 0;
+    private int successCount = 0;
+    private int errorCount = 0;
+    private int validationErrorCount = 0;
+
+    private void HandleTaskUpdate(TaskUpdateEventArgs args)
+    {
+        updateCount++;
+        eventLog.Add(new EventLogEntry
+        {
+            Type = "update",
+            Message = $"Task '{args.TaskId}' is being updated",
+            Timestamp = args.Timestamp
+        });
+        StateHasChanged();
+    }
+
+    private void HandleTaskUpdateSuccess(TaskUpdateSuccessEventArgs args)
+    {
+        successCount++;
+        var task = args.UpdatedTask;
+        eventLog.Add(new EventLogEntry
+        {
+            Type = "success",
+            Message = $"Task '{args.TaskId}' updated successfully. Name: {task?.Name}, Progress: {task?.Progress}%",
+            Timestamp = args.Timestamp
+        });
+        StateHasChanged();
+    }
+
+    private void HandleTaskUpdateError(TaskUpdateErrorEventArgs args)
+    {
+        errorCount++;
+        eventLog.Add(new EventLogEntry
+        {
+            Type = "error",
+            Message = $"Task '{args.TaskId}' update failed: {args.ErrorMessage}",
+            Timestamp = args.Timestamp
+        });
+        StateHasChanged();
+    }
+
+    private void HandleTaskValidationError(TaskValidationErrorEventArgs args)
+    {
+        validationErrorCount++;
+        var errorMessages = string.Join(", ", args.Errors.Select(e => $"{e.Field}: {e.Message}"));
+        eventLog.Add(new EventLogEntry
+        {
+            Type = "validation",
+            Message = $"Task '{args.TaskId}' validation failed: {errorMessages}",
+            Timestamp = args.Timestamp
+        });
+        StateHasChanged();
+    }
+
+    private void ClearEventLog()
+    {
+        eventLog.Clear();
+        updateCount = 0;
+        successCount = 0;
+        errorCount = 0;
+        validationErrorCount = 0;
+    }
+}
