@@ -1,0 +1,35 @@
+name: deploy to github pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup .net
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: publish blazor app
+        run: dotnet publish src/Blazor-ApexGantt.Sample/Blazor-ApexGantt.Sample.csproj -c Release -o publish
+
+      - name: upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "publish/wwwroot"
+
+      - name: deploy to github pages
+        id: deployment
+        uses: actions/deploy-pages@v4

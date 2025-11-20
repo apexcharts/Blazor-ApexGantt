@@ -3,6 +3,8 @@
 A comprehensive Blazor wrapper library for [ApexGantt](https://apexcharts.com/apexgantt), enabling developers to create interactive Gantt charts and project timeline visualizations in Blazor applications with full C# integration.
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
+[![NuGet](https://img.shields.io/nuget/v/Blazor-ApexGantt.svg)](https://www.nuget.org/packages/Blazor-ApexGantt/)
+[![Downloads](https://img.shields.io/nuget/dt/Blazor-ApexGantt.svg)](https://www.nuget.org/packages/Blazor-ApexGantt/)
 
 ## Features
 
