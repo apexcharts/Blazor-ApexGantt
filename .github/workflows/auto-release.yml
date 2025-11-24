@@ -3,10 +3,7 @@ name: Auto Release & Tag
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".github/**"
+  workflow_dispatch: # allow manual trigger
 
 permissions:
   contents: write # required to create tags and releases
