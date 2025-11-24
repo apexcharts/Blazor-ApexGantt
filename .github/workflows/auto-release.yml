@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write # required to create tags and releases
-  id-token: write # required for OIDC trusted publishing
 
 jobs:
   check-release:
@@ -148,6 +147,7 @@ jobs:
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
             --source https://api.nuget.org/v3/index.json \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
             --skip-duplicate
 
       - name: upload artifacts
