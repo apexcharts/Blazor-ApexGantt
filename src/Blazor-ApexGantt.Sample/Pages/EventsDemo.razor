@@ -6,9 +6,8 @@
 
 <h1>ApexGantt Events Demo</h1>
 <p>
-        Edit tasks to see events in action. Try changing task names, dates, or progress.
+    Edit, drag, or resize tasks to see all events in action.
 </p>
-
 
 <div class="mb-4">
     <ApexGantt 
@@ -17,34 +16,37 @@
         OnTaskUpdate="@HandleTaskUpdate"
         OnTaskUpdateSuccess="@HandleTaskUpdateSuccess"
         OnTaskUpdateError="@HandleTaskUpdateError"
-        OnTaskValidationError="@HandleTaskValidationError" />
+        OnTaskValidationError="@HandleTaskValidationError"
+        OnTaskDragged="@HandleTaskDragged"
+        OnTaskResized="@HandleTaskResized" />
 </div>
-    
 
-<div>
-  <div class="card">
-      <div class="card-header">
-          <h5 class="mb-0">Event Log</h5>
-          <button class="btn btn-sm btn-outline-secondary" @onclick="ClearEventLog">Clear</button>
-      </div>
-      <div class="card-body event-log">
-          @if (!eventLog.Any())
-          {
-              <p class="text-muted">No events yet. Try editing a task!</p>
-          }
-          else
-          {
-              @foreach (var logEntry in eventLog.OrderByDescending(e => e.Timestamp))
-              {
-                  <div class="event-entry @logEntry.Type">
-                      <div class="event-type">@logEntry.Type</div>
-                      <div class="event-time">@logEntry.TimeFormatted</div>
-                      <div class="event-details">@logEntry.Message</div>
-                  </div>
-              }
-          }
-      </div>
-  </div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Event Log</h5>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ClearEventLog">Clear</button>
+            </div>
+            <div class="card-body event-log">
+                @if (!eventLog.Any())
+                {
+                    <p class="text-muted">No events yet. Try editing, dragging, or resizing a task!</p>
+                }
+                else
+                {
+                    @foreach (var logEntry in eventLog.OrderByDescending(e => e.Timestamp))
+                    {
+                        <div class="event-entry @logEntry.Type">
+                            <div class="event-type">@logEntry.Type.ToUpper()</div>
+                            <div class="event-time">@logEntry.TimeFormatted</div>
+                            <div class="event-details">@logEntry.Message</div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -80,6 +82,16 @@
         background-color: #fff3e0;
         border-left-color: #ff9800;
     }
+
+    .event-entry.dragged {
+        background-color: #f3e5f5;
+        border-left-color: #9c27b0;
+    }
+    
+    .event-entry.resized {
+        background-color: #e0f2f1;
+        border-left-color: #009688;
+    }
     
     .event-type {
         font-weight: 600;
@@ -94,26 +106,6 @@
     
     .event-details {
         font-size: 0.875rem;
-    }
-    
-    .stat-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .stat-item:last-child {
-        border-bottom: none;
-    }
-    
-    .stat-label {
-        font-weight: 500;
-    }
-    
-    .stat-value {
-        font-weight: 600;
-        font-size: 1.1rem;
     }
     
     .card-header {
@@ -189,18 +181,15 @@
         public string Type { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public long Timestamp { get; set; }
-        public string TimeFormatted => DateTimeOffset.FromUnixTimeMilliseconds(Timestamp).LocalDateTime.ToString("HH:mm:ss");
+        public string TimeFormatted => DateTimeOffset.FromUnixTimeMilliseconds(Timestamp)
+            .LocalDateTime
+            .ToString("HH:mm:ss");
     }
 
     private List<EventLogEntry> eventLog = new();
-    private int updateCount = 0;
-    private int successCount = 0;
-    private int errorCount = 0;
-    private int validationErrorCount = 0;
 
     private void HandleTaskUpdate(TaskUpdateEventArgs args)
     {
-        updateCount++;
         eventLog.Add(new EventLogEntry
         {
             Type = "update",
@@ -212,7 +201,6 @@
 
     private void HandleTaskUpdateSuccess(TaskUpdateSuccessEventArgs args)
     {
-        successCount++;
         var task = args.UpdatedTask;
         eventLog.Add(new EventLogEntry
         {
@@ -225,7 +213,6 @@
 
     private void HandleTaskUpdateError(TaskUpdateErrorEventArgs args)
     {
-        errorCount++;
         eventLog.Add(new EventLogEntry
         {
             Type = "error",
@@ -237,7 +224,6 @@
 
     private void HandleTaskValidationError(TaskValidationErrorEventArgs args)
     {
-        validationErrorCount++;
         var errorMessages = string.Join(", ", args.Errors.Select(e => $"{e.Field}: {e.Message}"));
         eventLog.Add(new EventLogEntry
         {
@@ -248,12 +234,30 @@
         StateHasChanged();
     }
 
+    private void HandleTaskDragged(TaskDraggedEventArgs args)
+    {
+        eventLog.Add(new EventLogEntry
+        {
+            Type = "dragged",
+            Message = $"Task '{args.TaskId}' dragged {args.DaysMoved} days ({args.OldStartTime} → {args.NewStartTime})",
+            Timestamp = args.Timestamp
+        });
+        StateHasChanged();
+    }
+
+    private void HandleTaskResized(TaskResizedEventArgs args)
+    {
+        eventLog.Add(new EventLogEntry
+        {
+            Type = "resized",
+            Message = $"Task '{args.TaskId}' resized using {args.ResizeHandle} handle, duration changed by {args.DurationChange} days",
+            Timestamp = args.Timestamp
+        });
+        StateHasChanged();
+    }
+
     private void ClearEventLog()
     {
         eventLog.Clear();
-        updateCount = 0;
-        successCount = 0;
-        errorCount = 0;
-        validationErrorCount = 0;
     }
 }

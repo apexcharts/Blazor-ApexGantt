@@ -99,3 +99,95 @@ public class TaskValidationErrorEventArgs
     /// </summary>
     public long Timestamp { get; set; }
 }
+
+/// <summary>
+/// event data for task dragged event
+/// </summary>
+public class TaskDraggedEventArgs
+{
+    /// <summary>
+    /// id of the task that was dragged
+    /// </summary>
+    public string TaskId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// original start time before drag
+    /// </summary>
+    public string OldStartTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// original end time before drag
+    /// </summary>
+    public string OldEndTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// new start time after drag
+    /// </summary>
+    public string NewStartTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// new end time after drag
+    /// </summary>
+    public string NewEndTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// number of days the task was moved
+    /// </summary>
+    public int DaysMoved { get; set; }
+
+    /// <summary>
+    /// list of child task ids affected by the drag
+    /// </summary>
+    public List<string> AffectedChildTasks { get; set; } = new();
+
+    /// <summary>
+    /// timestamp when the drag occurred
+    /// </summary>
+    public long Timestamp { get; set; }
+}
+
+/// <summary>
+/// event data for task resized event
+/// </summary>
+public class TaskResizedEventArgs
+{
+    /// <summary>
+    /// id of the task that was resized
+    /// </summary>
+    public string TaskId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// which handle was used for resize ('left' or 'right')
+    /// </summary>
+    public string ResizeHandle { get; set; } = string.Empty;
+
+    /// <summary>
+    /// original start time before resize
+    /// </summary>
+    public string OldStartTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// original end time before resize
+    /// </summary>
+    public string OldEndTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// new start time after resize
+    /// </summary>
+    public string NewStartTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// new end time after resize
+    /// </summary>
+    public string NewEndTime { get; set; } = string.Empty;
+
+    /// <summary>
+    /// change in duration (in days)
+    /// </summary>
+    public int DurationChange { get; set; }
+
+    /// <summary>
+    /// timestamp when the resize occurred
+    /// </summary>
+    public long Timestamp { get; set; }
+}

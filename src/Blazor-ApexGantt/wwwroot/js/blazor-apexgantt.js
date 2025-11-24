@@ -93,6 +93,36 @@ window.blazorApexGantt = {
       });
     };
 
+    // task dragged event
+    const taskDraggedListener = (event) => {
+      const detail = event.detail;
+      dotNetRef.invokeMethodAsync("HandleTaskDragged", {
+        taskId: detail.taskId,
+        oldStartTime: detail.oldStartTime,
+        oldEndTime: detail.oldEndTime,
+        newStartTime: detail.newStartTime,
+        newEndTime: detail.newEndTime,
+        daysMoved: detail.daysMoved,
+        affectedChildTasks: detail.affectedChildTasks || [],
+        timestamp: detail.timestamp,
+      });
+    };
+
+    // task resized event
+    const taskResizedListener = (event) => {
+      const detail = event.detail;
+      dotNetRef.invokeMethodAsync("HandleTaskResized", {
+        taskId: detail.taskId,
+        resizeHandle: detail.resizeHandle,
+        oldStartTime: detail.oldStartTime,
+        oldEndTime: detail.oldEndTime,
+        newStartTime: detail.newStartTime,
+        newEndTime: detail.newEndTime,
+        durationChange: detail.durationChange,
+        timestamp: detail.timestamp,
+      });
+    };
+
     // add event listeners
     element.addEventListener("taskUpdate", taskUpdateListener);
     element.addEventListener("taskUpdateSuccess", taskUpdateSuccessListener);
@@ -101,12 +131,16 @@ window.blazorApexGantt = {
       "taskValidationError",
       taskValidationErrorListener
     );
+    element.addEventListener("taskDragged", taskDraggedListener);
+    element.addEventListener("taskResized", taskResizedListener);
 
     // store listeners for cleanup
     listeners.taskUpdate = taskUpdateListener;
     listeners.taskUpdateSuccess = taskUpdateSuccessListener;
     listeners.taskUpdateError = taskUpdateErrorListener;
     listeners.taskValidationError = taskValidationErrorListener;
+    listeners.taskDragged = taskDraggedListener;
+    listeners.taskResized = taskResizedListener;
 
     this.eventListeners[elementId] = {
       element: element,
@@ -168,6 +202,8 @@ window.blazorApexGantt = {
           "taskValidationError",
           listeners.taskValidationError
         );
+        element.removeEventListener("taskDragged", listeners.taskDragged);
+        element.removeEventListener("taskResized", listeners.taskResized);
         delete this.eventListeners[elementId];
       }
 

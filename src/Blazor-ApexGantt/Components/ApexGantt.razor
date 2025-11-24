@@ -48,6 +48,18 @@
     [Parameter]
     public EventCallback<TaskValidationErrorEventArgs> OnTaskValidationError { get; set; }
 
+    /// <summary>
+    /// event fired when a task bar is dragged
+    /// </summary>
+    [Parameter]
+    public EventCallback<TaskDraggedEventArgs> OnTaskDragged { get; set; }
+
+    /// <summary>
+    /// event fired when a task bar is resized
+    /// </summary>
+    [Parameter]
+    public EventCallback<TaskResizedEventArgs> OnTaskResized { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -242,6 +254,30 @@
         if (OnTaskValidationError.HasDelegate)
         {
             await OnTaskValidationError.InvokeAsync(args);
+        }
+    }
+
+    /// <summary>
+    /// called from JavaScript when task dragged event occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task HandleTaskDragged(TaskDraggedEventArgs args)
+    {
+        if (OnTaskDragged.HasDelegate)
+        {
+            await OnTaskDragged.InvokeAsync(args);
+        }
+    }
+
+    /// <summary>
+    /// called from JavaScript when task resized event occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task HandleTaskResized(TaskResizedEventArgs args)
+    {
+        if (OnTaskResized.HasDelegate)
+        {
+            await OnTaskResized.InvokeAsync(args);
         }
     }
 
