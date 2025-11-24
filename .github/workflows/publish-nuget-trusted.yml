@@ -29,12 +29,21 @@ jobs:
       - name: Extract version from tag
         id: get_version
         run: |
-          # extract version from tag (removes 'v' prefix)
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing version: $VERSION"
+          # check if triggered by tag push
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # extract version from tag (removes 'v' prefix)
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "Publishing version from tag: $VERSION"
+          else
+            # manual trigger or other branch - get latest tag
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            VERSION=${LATEST_TAG#v}
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "Publishing version from latest tag: $VERSION (tag: $LATEST_TAG)"
+          fi
 
-      - name: Restore dependencies
+      - name: restore dependencies
         run: dotnet restore src/Blazor-ApexGantt/Blazor-ApexGantt.csproj
 
       - name: Build

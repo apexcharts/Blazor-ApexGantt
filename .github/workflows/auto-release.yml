@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write # required to create tags and releases
+  id-token: write # required for OIDC trusted publishing
 
 jobs:
   check-release:
@@ -17,6 +18,7 @@ jobs:
     outputs:
       should_release: ${{ steps.check.outputs.should_release }}
       new_version: ${{ steps.version.outputs.new_version }}
+      new_version_number: ${{ steps.version.outputs.new_version_number }}
 
     steps:
       - name: Checkout code
@@ -76,8 +78,10 @@ jobs:
           fi
 
           NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          NEW_VERSION_NUMBER="${MAJOR}.${MINOR}.${PATCH}"
 
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version_number=$NEW_VERSION_NUMBER" >> $GITHUB_OUTPUT
           echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
           echo "Bumping $BUMP_TYPE version: $LATEST_TAG -> $NEW_VERSION"
 
@@ -104,3 +108,51 @@ jobs:
             Bump type: ${{ steps.version.outputs.bump_type }}
           draft: false
           prerelease: false
+
+  publish-nuget:
+    needs: check-release
+    runs-on: ubuntu-latest
+    environment: nuget-publishing
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-release.outputs.new_version }}
+          fetch-depth: 0
+
+      - name: setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: restore dependencies
+        run: dotnet restore src/Blazor-ApexGantt/Blazor-ApexGantt.csproj
+
+      - name: build
+        run: |
+          dotnet build src/Blazor-ApexGantt/Blazor-ApexGantt.csproj \
+            --configuration Release \
+            --no-restore \
+            /p:Version=${{ needs.check-release.outputs.new_version_number }}
+
+      - name: pack
+        run: |
+          dotnet pack src/Blazor-ApexGantt/Blazor-ApexGantt.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ needs.check-release.outputs.new_version_number }}
+
+      - name: publish to NuGet (Trusted Publishing)
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: ./artifacts/*.nupkg
+          retention-days: 30
