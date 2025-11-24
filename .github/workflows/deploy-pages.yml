@@ -1,11 +1,8 @@
-name: Deploy to Github Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths:
-      - "src/Blazor-ApexGantt.Sample/**"
-      - "src/Blazor-ApexGantt/**"
   workflow_dispatch: # allow manual trigger
 
 permissions:
@@ -34,15 +31,21 @@ jobs:
       - name: get latest version
         id: version
         run: |
-          # get latest tag, default to dev if none exists
+          # get latest tag, default to v0.0.0 if none exists
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           # remove 'v' prefix for dotnet version
           VERSION=${LATEST_TAG#v}
+
+          # ensure version is valid (handle edge cases)
+          if [ -z "$VERSION" ] || [ "$VERSION" = "v0.0.0" ]; then
+            VERSION="0.0.0"
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Deploying version: $LATEST_TAG (dotnet version: $VERSION)"
 
-      - name: setup .net
+      - name: setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
@@ -50,15 +53,11 @@ jobs:
       - name: publish blazor app
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # if version is empty or 'dev', use 0.0.0
-          if [ -z "$VERSION" ] || [ "$VERSION" = "dev" ]; then
-            VERSION="0.0.0-dev"
-          fi
           echo "Publishing with version: $VERSION"
           dotnet publish src/Blazor-ApexGantt.Sample/Blazor-ApexGantt.Sample.csproj \
             -c Release \
             -o publish \
-            /p:Version=$VERSION
+            /p:Version="$VERSION"
 
       - name: Change base href in index.html
         run: |
