@@ -148,6 +148,27 @@ window.blazorApexGantt = {
     };
   },
 
+  // set license key for apexgantt
+  setLicense: function (licenseKey) {
+    try {
+      if (
+        typeof window.ApexGantt !== "undefined" &&
+        window.ApexGantt.setLicense
+      ) {
+        window.ApexGantt.setLicense(licenseKey);
+        return true;
+      } else {
+        console.error(
+          "ApexGantt library not loaded or setLicense method not available"
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("failed to set apexgantt license:", error);
+      return false;
+    }
+  },
+
   // map task object from JS to Blazor-friendly format
   mapTaskToBlazor: function (task) {
     if (!task) return null;

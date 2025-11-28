@@ -97,6 +97,60 @@ In your component or `_Imports.razor`:
 }
 ```
 
+## License Configuration
+
+If you have a commercial license for ApexGantt, you need to configure the license key during application startup.
+
+### Option 1: Direct Configuration in Program.cs
+
+```csharp
+using Blazor_ApexGantt.Extensions;
+
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+// configure with license key directly
+builder.Services.AddApexGantt(options =>
+{
+    options.LicenseKey = "your-license-key-here";
+});
+
+await builder.Build().RunAsync();
+```
+
+### Option 2: Using Environment Variables (Production)
+
+For production deployments, use environment variables to keep the license key secure:
+
+```csharp
+using Blazor_ApexGantt.Extensions;
+
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+// read from environment variable
+builder.Services.AddApexGantt(options =>
+{
+    options.LicenseKey = builder.Configuration["APEXGANTT_LICENSE_KEY"];
+});
+
+await builder.Build().RunAsync();
+```
+
+### Without License (Free Version)
+
+If you don't have a license key, simply register the services without configuration:
+
+```csharp
+using Blazor_ApexGantt.Extensions;
+
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+builder.Services.AddApexGantt();
+
+await builder.Build().RunAsync();
+```
+
+> **Note:** The license will be automatically initialized before any charts are rendered. You only need to configure it once during application startup.
+
 ## Configuration
 
 ### GanttOptions

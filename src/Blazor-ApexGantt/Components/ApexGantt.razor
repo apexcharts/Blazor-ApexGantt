@@ -1,8 +1,10 @@
 @using Microsoft.JSInterop
 @using Blazor_ApexGantt.Interop
 @using Blazor_ApexGantt.Models
+@using Blazor_ApexGantt.Services
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
+@inject ApexGanttLicenseService LicenseService
 
 <div id="@_chartId"></div>
 
@@ -64,6 +66,9 @@
     {
         if (firstRender)
         {
+            // initialize license before creating charts
+            await LicenseService.InitializeLicenseAsync();
+
             _dotNetRef = DotNetObjectReference.Create(this);
             _interop = new ApexGanttInterop(JSRuntime);
             await InitializeChartAsync();

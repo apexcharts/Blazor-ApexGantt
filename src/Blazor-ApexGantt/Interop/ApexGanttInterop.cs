@@ -9,10 +9,26 @@ public class ApexGanttInterop : IAsyncDisposable
 {
     private readonly IJSRuntime _jsRuntime;
     private bool _initialized;
+    private bool _licenseSet;
 
     public ApexGanttInterop(IJSRuntime jsRuntime)
     {
         _jsRuntime = jsRuntime;
+    }
+
+    /// <summary>
+    /// set the apexgantt license key
+    /// </summary>
+    public async Task<bool> SetLicenseAsync(string licenseKey)
+    {
+        if (string.IsNullOrWhiteSpace(licenseKey))
+        {
+            return false;
+        }
+
+        await EnsureInitializedAsync();
+        _licenseSet = await _jsRuntime.InvokeAsync<bool>("blazorApexGantt.setLicense", licenseKey);
+        return _licenseSet;
     }
 
     /// <summary>
