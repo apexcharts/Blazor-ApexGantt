@@ -108,7 +108,7 @@ using Blazor_ApexGantt.Extensions;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
-// configure with license key directly
+// configure with license key
 builder.Services.AddApexGantt(options =>
 {
     options.LicenseKey = "your-license-key-here";
