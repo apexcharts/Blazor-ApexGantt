@@ -111,7 +111,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // configure with license key
 builder.Services.AddApexGantt(options =>
 {
-    options.LicenseKey = "your-license-key-here";
+    options.LicenseKey = "your-license-key";
 });
 
 await builder.Build().RunAsync();
