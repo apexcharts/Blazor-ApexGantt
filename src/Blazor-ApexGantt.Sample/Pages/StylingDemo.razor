@@ -17,11 +17,10 @@
     {
         Width = "100%",
         Height = "500px",
-        ViewMode = "day",
 
         // Visual/Appearance Options
         BarBackgroundColor = "#6366f1",
-        BarBorderRadius = 8,
+        BarBorderRadius = "8px",
         BarMargin = 4,
         BarTextColor = "#ffffff",
         RowHeight = 50,
@@ -37,7 +36,7 @@
             StartTime = DateTime.Now,
             EndTime = DateTime.Now.AddDays(5),
             Progress = 100,
-            Color = "#10b981" // emerald green
+            BarBackgroundColor = "#10b981" // emerald green
         },
         new GanttTask
         {
@@ -46,7 +45,7 @@
             StartTime = DateTime.Now.AddDays(5),
             EndTime = DateTime.Now.AddDays(12),
             Progress = 75,
-            Color = "#3b82f6" // blue
+            BarBackgroundColor = "#3b82f6" // blue
         },
         new GanttTask
         {
@@ -55,7 +54,7 @@
             StartTime = DateTime.Now.AddDays(12),
             EndTime = DateTime.Now.AddDays(19),
             Progress = 45,
-            Color = "#8b5cf6" // purple
+            BarBackgroundColor = "#8b5cf6" // purple
         },
         new GanttTask
         {
@@ -64,7 +63,7 @@
             StartTime = DateTime.Now.AddDays(19),
             EndTime = DateTime.Now.AddDays(24),
             Progress = 20,
-            Color = "#f59e0b" // amber
+            BarBackgroundColor = "#f59e0b" // amber
         },
         new GanttTask
         {
@@ -73,7 +72,7 @@
             StartTime = DateTime.Now.AddDays(24),
             EndTime = DateTime.Now.AddDays(26),
             Progress = 0,
-            Color = "#ef4444" // red
+            BarBackgroundColor = "#ef4444" // red
         }
     };
 }

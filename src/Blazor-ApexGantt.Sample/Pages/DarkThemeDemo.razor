@@ -21,20 +21,19 @@
     {
         Width = "100%",
         Height = "600px",
-        ViewMode = "week",
         
         // enable dark theme
-        Theme = "dark",
+        Theme = ThemeMode.Dark,
 
         // interactivity options
-        EnableToolbar = true,
+        EnableTaskCRUDToolbar = true,
         EnableTaskDrag = true,
         EnableTaskResize = true,
         EnableTaskEdit = true,
 
         // layout options
         RowHeight = 32,
-        BarBorderRadius = 6
+        BarBorderRadius = "6px"
     };
 
     private List<GanttTask> tasks = new()
@@ -46,7 +45,7 @@
             StartTime = DateTime.Now,
             EndTime = DateTime.Now.AddDays(5),
             Progress = 100,
-            Color = "#10b981"
+            BarBackgroundColor = "#10b981"
         },
         new GanttTask
         {
@@ -56,7 +55,7 @@
             EndTime = DateTime.Now.AddDays(10),
             Progress = 85,
             Dependency = "research",
-            Color = "#3b82f6"
+            BarBackgroundColor = "#3b82f6"
         },
         new GanttTask
         {
@@ -66,7 +65,7 @@
             EndTime = DateTime.Now.AddDays(18),
             Progress = 70,
             Dependency = "planning",
-            Color = "#8b5cf6"
+            BarBackgroundColor = "#8b5cf6"
         },
         new GanttTask
         {
@@ -76,7 +75,7 @@
             EndTime = DateTime.Now.AddDays(25),
             Progress = 55,
             Dependency = "design-phase",
-            Color = "#ec4899"
+            BarBackgroundColor = "#ec4899"
         },
         new GanttTask
         {
@@ -86,7 +85,7 @@
             EndTime = DateTime.Now.AddDays(30),
             Progress = 40,
             Dependency = "prototype",
-            Color = "#f59e0b"
+            BarBackgroundColor = "#f59e0b"
         },
         new GanttTask
         {
@@ -96,7 +95,7 @@
             EndTime = DateTime.Now.AddDays(35),
             Progress = 25,
             Dependency = "user-testing",
-            Color = "#06b6d4"
+            BarBackgroundColor = "#06b6d4"
         },
         new GanttTask
         {
@@ -106,7 +105,7 @@
             EndTime = DateTime.Now.AddDays(50),
             Progress = 15,
             Dependency = "refinement",
-            Color = "#6366f1"
+            BarBackgroundColor = "#6366f1"
         },
         new GanttTask
         {
@@ -116,7 +115,7 @@
             EndTime = DateTime.Now.AddDays(58),
             Progress = 5,
             Dependency = "development",
-            Color = "#f97316"
+            BarBackgroundColor = "#f97316"
         },
         new GanttTask
         {
@@ -126,7 +125,7 @@
             EndTime = DateTime.Now.AddDays(60),
             Progress = 0,
             Dependency = "qa-testing",
-            Color = "#ef4444"
+            BarBackgroundColor = "#ef4444"
         }
     };
 }

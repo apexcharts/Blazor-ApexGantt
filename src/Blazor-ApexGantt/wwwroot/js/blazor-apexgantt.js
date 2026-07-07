@@ -1,243 +1,237 @@
-// blazor interop bridge for apexgantt
-window.blazorApexGantt = {
-  // store chart instances and event listeners
-  instances: {},
-  eventListeners: {},
+/*! Blazor-ApexGantt interop bridge (ES module) */
+//
+// Self-contained: imports the vendored apexgantt ESM dist directly, so the host app
+// no longer needs a <script> tag or a CDN reference for the core library.
+import { ApexGantt } from "./apexgantt.es.min.js?ver=3.15.0";
 
-  // initialize a new gantt chart
-  init: function (elementId, options, dotNetRef) {
-    try {
-      const element = document.getElementById(elementId);
-      if (!element) {
-        console.error("element not found:", elementId);
-        return false;
-      }
+// chart instances and their event-listener cleanups, keyed by element id
+const instances = {};
+const cleanups = {};
 
-      // if width is percentage or auto, calculate actual pixels
-      if (
-        typeof options.width === "string" &&
-        (options.width.includes("%") || options.width === "auto")
-      ) {
-        const container = element.parentElement;
-        if (container) {
-          // get container width minus padding
-          const style = window.getComputedStyle(container);
-          const paddingLeft = parseFloat(style.paddingLeft) || 0;
-          const paddingRight = parseFloat(style.paddingRight) || 0;
-          options.width = container.clientWidth - paddingLeft - paddingRight;
-        }
-      }
-
-      // create new apexgantt instance
-      const chart = new ApexGantt(element, options);
-
-      // render the chart
-      chart.render();
-
-      // store instance for future reference
-      this.instances[elementId] = chart;
-
-      // setup event listeners if dotNetRef is provided
-      if (dotNetRef) {
-        this.setupEventListeners(elementId, element, dotNetRef);
-      }
-
-      return true;
-    } catch (error) {
-      console.error("failed to initialize apexgantt:", error);
-      return false;
-    }
-  },
-
-  // setup event listeners for apexgantt events
-  setupEventListeners: function (elementId, element, dotNetRef) {
-    const listeners = {};
-
-    // task update event
-    const taskUpdateListener = (event) => {
-      const detail = event.detail;
-      dotNetRef.invokeMethodAsync("HandleTaskUpdate", {
-        taskId: detail.taskId,
-        updatedTask: this.mapTaskToBlazor(detail.updatedTask),
-        timestamp: detail.timestamp,
-      });
-    };
-
-    // task update success event
-    const taskUpdateSuccessListener = (event) => {
-      const detail = event.detail;
-      dotNetRef.invokeMethodAsync("HandleTaskUpdateSuccess", {
-        taskId: detail.taskId,
-        updatedTask: this.mapTaskToBlazor(detail.updatedTask),
-        timestamp: detail.timestamp,
-      });
-    };
-
-    // task update error event
-    const taskUpdateErrorListener = (event) => {
-      const detail = event.detail;
-      dotNetRef.invokeMethodAsync("HandleTaskUpdateError", {
-        taskId: detail.taskId,
-        errorMessage: detail.error?.message || "Unknown error",
-        timestamp: detail.timestamp,
-      });
-    };
-
-    // task validation error event
-    const taskValidationErrorListener = (event) => {
-      const detail = event.detail;
-      dotNetRef.invokeMethodAsync("HandleTaskValidationError", {
-        taskId: detail.taskId,
-        errors: detail.errors || [],
-        timestamp: detail.timestamp,
-      });
-    };
-
-    // task dragged event
-    const taskDraggedListener = (event) => {
-      const detail = event.detail;
-      dotNetRef.invokeMethodAsync("HandleTaskDragged", {
-        taskId: detail.taskId,
-        oldStartTime: detail.oldStartTime,
-        oldEndTime: detail.oldEndTime,
-        newStartTime: detail.newStartTime,
-        newEndTime: detail.newEndTime,
-        daysMoved: detail.daysMoved,
-        affectedChildTasks: detail.affectedChildTasks || [],
-        timestamp: detail.timestamp,
-      });
-    };
-
-    // task resized event
-    const taskResizedListener = (event) => {
-      const detail = event.detail;
-      dotNetRef.invokeMethodAsync("HandleTaskResized", {
-        taskId: detail.taskId,
-        resizeHandle: detail.resizeHandle,
-        oldStartTime: detail.oldStartTime,
-        oldEndTime: detail.oldEndTime,
-        newStartTime: detail.newStartTime,
-        newEndTime: detail.newEndTime,
-        durationChange: detail.durationChange,
-        timestamp: detail.timestamp,
-      });
-    };
-
-    // add event listeners
-    element.addEventListener("taskUpdate", taskUpdateListener);
-    element.addEventListener("taskUpdateSuccess", taskUpdateSuccessListener);
-    element.addEventListener("taskUpdateError", taskUpdateErrorListener);
-    element.addEventListener(
-      "taskValidationError",
-      taskValidationErrorListener
-    );
-    element.addEventListener("taskDragged", taskDraggedListener);
-    element.addEventListener("taskResized", taskResizedListener);
-
-    // store listeners for cleanup
-    listeners.taskUpdate = taskUpdateListener;
-    listeners.taskUpdateSuccess = taskUpdateSuccessListener;
-    listeners.taskUpdateError = taskUpdateErrorListener;
-    listeners.taskValidationError = taskValidationErrorListener;
-    listeners.taskDragged = taskDraggedListener;
-    listeners.taskResized = taskResizedListener;
-
-    this.eventListeners[elementId] = {
-      element: element,
-      listeners: listeners,
-    };
-  },
-
-  // set license key for apexgantt
-  setLicense: function (licenseKey) {
-    try {
-      if (
-        typeof window.ApexGantt !== "undefined" &&
-        window.ApexGantt.setLicense
-      ) {
-        window.ApexGantt.setLicense(licenseKey);
-        return true;
-      } else {
-        console.error(
-          "ApexGantt library not loaded or setLicense method not available"
-        );
-        return false;
-      }
-    } catch (error) {
-      console.error("failed to set apexgantt license:", error);
-      return false;
-    }
-  },
-
-  // map task object from JS to Blazor-friendly format
-  mapTaskToBlazor: function (task) {
-    if (!task) return null;
-
-    return {
-      id: task.id,
-      name: task.name,
-      startTime: task.startTime,
-      endTime: task.endTime,
-      progress: task.progress,
-      parentId: task.parentId,
-      dependency: task.dependency,
-      color: task.color,
-      className: task.className,
-    };
-  },
-
-  // update existing chart
-  update: function (elementId, options) {
-    try {
-      const chart = this.instances[elementId];
-      if (!chart) {
-        console.error("chart instance not found:", elementId);
-        return false;
-      }
-
-      chart.updateOptions(options);
-      return true;
-    } catch (error) {
-      console.error("failed to update chart:", error);
-      return false;
-    }
-  },
-
-  // destroy chart and cleanup
-  destroy: function (elementId) {
-    try {
-      // cleanup event listeners
-      const eventData = this.eventListeners[elementId];
-      if (eventData) {
-        const { element, listeners } = eventData;
-        element.removeEventListener("taskUpdate", listeners.taskUpdate);
-        element.removeEventListener(
-          "taskUpdateSuccess",
-          listeners.taskUpdateSuccess
-        );
-        element.removeEventListener(
-          "taskUpdateError",
-          listeners.taskUpdateError
-        );
-        element.removeEventListener(
-          "taskValidationError",
-          listeners.taskValidationError
-        );
-        element.removeEventListener("taskDragged", listeners.taskDragged);
-        element.removeEventListener("taskResized", listeners.taskResized);
-        delete this.eventListeners[elementId];
-      }
-
-      // destroy chart
-      const chart = this.instances[elementId];
-      if (chart) {
-        chart.destroy();
-        delete this.instances[elementId];
-      }
-      return true;
-    } catch (error) {
-      console.error("failed to destroy chart:", error);
-      return false;
-    }
-  },
+// core CustomEvent name -> Blazor [JSInvokable] handler method
+const EVENT_HANDLERS = {
+  taskUpdate: "HandleTaskUpdate",
+  taskUpdateSuccess: "HandleTaskUpdateSuccess",
+  taskUpdateError: "HandleTaskUpdateError",
+  taskValidationError: "HandleTaskValidationError",
+  taskDragged: "HandleTaskDragged",
+  taskResized: "HandleTaskResized",
+  taskAdded: "HandleTaskAdded",
+  taskDeleted: "HandleTaskDeleted",
+  taskMoved: "HandleTaskMoved",
+  taskProgressChanged: "HandleTaskProgressChanged",
+  dependencyAdded: "HandleDependencyAdded",
+  dependencyRemoved: "HandleDependencyRemoved",
+  selectionChange: "HandleSelectionChange",
+  dependencyArrowUpdate: "HandleDependencyArrowUpdate",
+  historyChange: "HandleHistoryChange",
+  sortChange: "HandleSortChange",
+  filterChange: "HandleFilterChange",
+  groupChange: "HandleGroupChange",
+  columnResize: "HandleColumnResize",
+  columnReorder: "HandleColumnReorder",
 };
+
+// Map a CustomEvent detail into a plain, JSON-serializable payload for .NET.
+// Most detail objects are already plain data that maps 1:1 to the C# event args;
+// the Error object on taskUpdateError is the one that needs flattening.
+function toPayload(name, detail) {
+  if (!detail) return {};
+  if (name === "taskUpdateError") {
+    return {
+      taskId: detail.taskId,
+      errorMessage: detail.error?.message ?? "Unknown error",
+      timestamp: detail.timestamp,
+    };
+  }
+  return detail;
+}
+
+function chartOf(elementId) {
+  const chart = instances[elementId];
+  if (!chart) throw new Error(`ApexGantt instance not found: ${elementId}`);
+  return chart;
+}
+
+export function setLicense(licenseKey) {
+  try {
+    if (ApexGantt && typeof ApexGantt.setLicense === "function") {
+      ApexGantt.setLicense(licenseKey);
+      return true;
+    }
+    console.error("ApexGantt.setLicense is not available");
+    return false;
+  } catch (error) {
+    console.error("failed to set apexgantt license:", error);
+    return false;
+  }
+}
+
+export function init(elementId, optionsJson, dotNetRef) {
+  try {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      console.error("element not found:", elementId);
+      return false;
+    }
+
+    const options = JSON.parse(optionsJson);
+
+    // resolve percentage/auto width to actual pixels against the container
+    if (
+      typeof options.width === "string" &&
+      (options.width.includes("%") || options.width === "auto")
+    ) {
+      const container = element.parentElement;
+      if (container) {
+        const style = window.getComputedStyle(container);
+        const paddingLeft = parseFloat(style.paddingLeft) || 0;
+        const paddingRight = parseFloat(style.paddingRight) || 0;
+        options.width = container.clientWidth - paddingLeft - paddingRight;
+      }
+    }
+
+    const chart = new ApexGantt(element, options);
+    chart.render();
+    instances[elementId] = chart;
+
+    if (dotNetRef) {
+      const added = [];
+      for (const [eventName, handler] of Object.entries(EVENT_HANDLERS)) {
+        const listener = (e) =>
+          dotNetRef.invokeMethodAsync(handler, toPayload(eventName, e.detail));
+        element.addEventListener(eventName, listener);
+        added.push([eventName, listener]);
+      }
+      cleanups[elementId] = () =>
+        added.forEach(([eventName, listener]) =>
+          element.removeEventListener(eventName, listener)
+        );
+    }
+
+    return true;
+  } catch (error) {
+    console.error("failed to initialize apexgantt:", error);
+    return false;
+  }
+}
+
+export function update(elementId, optionsJson) {
+  chartOf(elementId).update(JSON.parse(optionsJson));
+}
+
+export function destroy(elementId) {
+  try {
+    cleanups[elementId]?.();
+    delete cleanups[elementId];
+    const chart = instances[elementId];
+    if (chart) {
+      chart.destroy();
+      delete instances[elementId];
+    }
+    return true;
+  } catch (error) {
+    console.error("failed to destroy chart:", error);
+    return false;
+  }
+}
+
+// --- Task CRUD ---------------------------------------------------------------
+export function addTask(elementId, taskJson) {
+  chartOf(elementId).addTask(JSON.parse(taskJson));
+}
+export function updateTask(elementId, taskId, updatesJson) {
+  chartOf(elementId).updateTask(taskId, JSON.parse(updatesJson));
+}
+export function deleteTask(elementId, taskId) {
+  chartOf(elementId).deleteTask(taskId);
+}
+export function moveTask(elementId, taskId, optionsJson) {
+  chartOf(elementId).moveTask(taskId, optionsJson ? JSON.parse(optionsJson) : undefined);
+}
+
+// --- Dependencies ------------------------------------------------------------
+export function addDependency(elementId, fromId, toId, optionsJson) {
+  return chartOf(elementId).addDependency(
+    fromId,
+    toId,
+    optionsJson ? JSON.parse(optionsJson) : undefined
+  );
+}
+export function removeDependency(elementId, fromId, toId) {
+  return chartOf(elementId).removeDependency(fromId, toId);
+}
+
+// --- History -----------------------------------------------------------------
+export function undo(elementId) {
+  return chartOf(elementId).undo();
+}
+export function redo(elementId) {
+  return chartOf(elementId).redo();
+}
+export function canUndo(elementId) {
+  return chartOf(elementId).canUndo();
+}
+export function canRedo(elementId) {
+  return chartOf(elementId).canRedo();
+}
+export function clearHistory(elementId) {
+  chartOf(elementId).clearHistory();
+}
+
+// --- Sort / group / filter ---------------------------------------------------
+export function sort(elementId, criteriaJson) {
+  chartOf(elementId).sort(JSON.parse(criteriaJson));
+}
+export function clearSort(elementId) {
+  chartOf(elementId).clearSort();
+}
+export function groupBy(elementId, criterion) {
+  chartOf(elementId).groupBy(criterion);
+}
+export function clearGrouping(elementId) {
+  chartOf(elementId).clearGrouping();
+}
+export function setFilterRules(elementId, rulesJson) {
+  chartOf(elementId).setFilterRules(rulesJson ? JSON.parse(rulesJson) : null);
+}
+export function clearFilter(elementId) {
+  chartOf(elementId).clearFilter();
+}
+
+// --- Columns -----------------------------------------------------------------
+export function setColumnWidth(elementId, key, width) {
+  chartOf(elementId).setColumnWidth(key, width);
+}
+export function resetColumnWidths(elementId, key) {
+  chartOf(elementId).resetColumnWidths(key || undefined);
+}
+export function setColumnOrder(elementId, orderJson) {
+  chartOf(elementId).setColumnOrder(JSON.parse(orderJson));
+}
+export function getColumnOrder(elementId) {
+  return chartOf(elementId).getColumnOrder();
+}
+
+// --- Selection / navigation / zoom / export ----------------------------------
+export function scrollToTask(elementId, taskId) {
+  return chartOf(elementId).scrollToTask(taskId);
+}
+export function getSelectedTasks(elementId) {
+  return chartOf(elementId).getSelectedTasks();
+}
+export function setSelectedTasks(elementId, idsJson) {
+  chartOf(elementId).setSelectedTasks(JSON.parse(idsJson));
+}
+export function clearSelection(elementId) {
+  chartOf(elementId).clearSelection();
+}
+export function zoomIn(elementId) {
+  chartOf(elementId).zoomIn();
+}
+export function zoomOut(elementId) {
+  chartOf(elementId).zoomOut();
+}
+export function exportChart(elementId, format) {
+  return chartOf(elementId).exportChart(format || undefined);
+}
