@@ -1,6 +1,8 @@
 @using Microsoft.JSInterop
+@using System.Collections.Generic
 @using Blazor_ApexGantt.Interop
 @using Blazor_ApexGantt.Models
+@using Blazor_ApexGantt.Serialization
 @using Blazor_ApexGantt.Services
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
@@ -9,291 +11,272 @@
 <div id="@_chartId"></div>
 
 @code {
-    private string _chartId = $"gantt-{Guid.NewGuid():N}";
+    private readonly string _chartId = $"gantt-{Guid.NewGuid():N}";
     private ApexGanttInterop? _interop;
     private bool _chartInitialized;
     private DotNetObjectReference<ApexGantt>? _dotNetRef;
 
-    /// <summary>
-    /// gantt chart options and configuration
-    /// </summary>
-    [Parameter]
-    public GanttOptions Options { get; set; } = new();
+    /// <summary>Gantt chart options and configuration.</summary>
+    [Parameter] public GanttOptions Options { get; set; } = new();
 
-    /// <summary>
-    /// list of tasks to display
-    /// </summary>
-    [Parameter]
-    public List<GanttTask>? Tasks { get; set; }
+    /// <summary>Tasks to display. Takes precedence over <see cref="GanttOptions.Tasks"/> when set.</summary>
+    [Parameter] public List<GanttTask>? Tasks { get; set; }
 
-    /// <summary>
-    /// event fired when a task update is initiated
-    /// </summary>
-    [Parameter]
-    public EventCallback<TaskUpdateEventArgs> OnTaskUpdate { get; set; }
-
-    /// <summary>
-    /// event fired when a task update succeeds
-    /// </summary>
-    [Parameter]
-    public EventCallback<TaskUpdateSuccessEventArgs> OnTaskUpdateSuccess { get; set; }
-
-    /// <summary>
-    /// event fired when a task update fails
-    /// </summary>
-    [Parameter]
-    public EventCallback<TaskUpdateErrorEventArgs> OnTaskUpdateError { get; set; }
-
-    /// <summary>
-    /// event fired when task validation fails
-    /// </summary>
-    [Parameter]
-    public EventCallback<TaskValidationErrorEventArgs> OnTaskValidationError { get; set; }
-
-    /// <summary>
-    /// event fired when a task bar is dragged
-    /// </summary>
-    [Parameter]
-    public EventCallback<TaskDraggedEventArgs> OnTaskDragged { get; set; }
-
-    /// <summary>
-    /// event fired when a task bar is resized
-    /// </summary>
-    [Parameter]
-    public EventCallback<TaskResizedEventArgs> OnTaskResized { get; set; }
+    // --- Event callbacks -----------------------------------------------------
+    [Parameter] public EventCallback<TaskUpdateEventArgs> OnTaskUpdate { get; set; }
+    [Parameter] public EventCallback<TaskUpdateSuccessEventArgs> OnTaskUpdateSuccess { get; set; }
+    [Parameter] public EventCallback<TaskUpdateErrorEventArgs> OnTaskUpdateError { get; set; }
+    [Parameter] public EventCallback<TaskValidationErrorEventArgs> OnTaskValidationError { get; set; }
+    [Parameter] public EventCallback<TaskDraggedEventArgs> OnTaskDragged { get; set; }
+    [Parameter] public EventCallback<TaskResizedEventArgs> OnTaskResized { get; set; }
+    [Parameter] public EventCallback<TaskAddedEventArgs> OnTaskAdded { get; set; }
+    [Parameter] public EventCallback<TaskDeletedEventArgs> OnTaskDeleted { get; set; }
+    [Parameter] public EventCallback<TaskMovedEventArgs> OnTaskMoved { get; set; }
+    [Parameter] public EventCallback<TaskProgressChangedEventArgs> OnTaskProgressChanged { get; set; }
+    [Parameter] public EventCallback<DependencyChangeEventArgs> OnDependencyAdded { get; set; }
+    [Parameter] public EventCallback<DependencyChangeEventArgs> OnDependencyRemoved { get; set; }
+    [Parameter] public EventCallback<SelectionChangeEventArgs> OnSelectionChange { get; set; }
+    [Parameter] public EventCallback<DependencyArrowUpdateEventArgs> OnDependencyArrowUpdate { get; set; }
+    [Parameter] public EventCallback<HistoryChangeEventArgs> OnHistoryChange { get; set; }
+    [Parameter] public EventCallback<SortChangeEventArgs> OnSortChange { get; set; }
+    [Parameter] public EventCallback<FilterChangeEventArgs> OnFilterChange { get; set; }
+    [Parameter] public EventCallback<GroupChangeEventArgs> OnGroupChange { get; set; }
+    [Parameter] public EventCallback<ColumnResizeEventArgs> OnColumnResize { get; set; }
+    [Parameter] public EventCallback<ColumnReorderEventArgs> OnColumnReorder { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            // initialize license before creating charts
+            _interop = new ApexGanttInterop(JSRuntime);
+            // set license (if configured) before creating the chart
             await LicenseService.InitializeLicenseAsync();
 
             _dotNetRef = DotNetObjectReference.Create(this);
-            _interop = new ApexGanttInterop(JSRuntime);
-            await InitializeChartAsync();
+            _chartInitialized = await _interop.InitAsync(_chartId, BuildOptionsJson(), _dotNetRef);
         }
     }
 
-    private async Task InitializeChartAsync()
+    private string BuildOptionsJson()
     {
-        if (_interop == null) return;
-
-        // build chart options
-        var chartOptions = BuildChartOptions();
-
-        _chartInitialized = await _interop.InitAsync(_chartId, chartOptions, _dotNetRef);
+        // the Tasks parameter, when provided, is the source of truth for series
+        var effectiveTasks = Tasks ?? Options.Tasks;
+        Options.Tasks = effectiveTasks;
+        return GanttSerializer.Serialize(Options);
     }
 
-    private object BuildChartOptions()
+    // --- Public API ----------------------------------------------------------
+
+    /// <summary>Re-applies the current <see cref="Options"/> (and tasks) to the live chart.</summary>
+    public async Task UpdateAsync()
     {
-        // create options object to pass to apexgantt
-        var options = new Dictionary<string, object>();
+        if (_interop is null || !_chartInitialized) return;
+        await _interop.UpdateAsync(_chartId, BuildOptionsJson());
+    }
 
-        // Basic Options
-        if (Options.Height != null)
-            options["height"] = Options.Height;
+    /// <summary>Adds a task.</summary>
+    public async Task AddTaskAsync(GanttTask task)
+    {
+        if (_interop is null) return;
+        await _interop.AddTaskAsync(_chartId, GanttSerializer.Serialize(task));
+    }
 
-        if (Options.Width != null)
-            options["width"] = Options.Width;
+    /// <summary>Applies partial updates to a task.</summary>
+    public async Task UpdateTaskAsync(string taskId, GanttTask updates)
+    {
+        if (_interop is null) return;
+        await _interop.UpdateTaskAsync(_chartId, taskId, GanttSerializer.Serialize(updates));
+    }
 
-        if (!string.IsNullOrEmpty(Options.Title))
-            options["title"] = Options.Title;
+    /// <summary>Deletes a task (and its descendants).</summary>
+    public async Task DeleteTaskAsync(string taskId)
+    {
+        if (_interop is null) return;
+        await _interop.DeleteTaskAsync(_chartId, taskId);
+    }
 
-        if (Options.TasksContainerWidth.HasValue)
-            options["tasksContainerWidth"] = Options.TasksContainerWidth.Value;
+    /// <summary>Re-parents a task. Pass the new parent id (or null to move to the root).</summary>
+    public async Task MoveTaskAsync(string taskId, string? newParentId)
+    {
+        if (_interop is null) return;
+        var opts = GanttSerializer.Serialize(new Dictionary<string, object?> { ["newParentId"] = newParentId });
+        await _interop.MoveTaskAsync(_chartId, taskId, opts);
+    }
 
-        if (!string.IsNullOrEmpty(Options.ViewMode))
-            options["viewMode"] = Options.ViewMode;
-
-        if (!string.IsNullOrEmpty(Options.Theme))
-            options["theme"] = Options.Theme;
-
-        // Visual/Appearance Options
-        if (!string.IsNullOrEmpty(Options.CanvasStyle))
-            options["canvasStyle"] = Options.CanvasStyle;
-
-        if (!string.IsNullOrEmpty(Options.BarBackgroundColor))
-            options["barBackgroundColor"] = Options.BarBackgroundColor;
-
-        if (Options.BarBorderRadius.HasValue)
-            options["barBorderRadius"] = Options.BarBorderRadius.Value;
-
-        if (Options.BarMargin.HasValue)
-            options["barMargin"] = Options.BarMargin.Value;
-
-        if (!string.IsNullOrEmpty(Options.BarTextColor))
-            options["barTextColor"] = Options.BarTextColor;
-
-        if (Options.RowBackgroundColors != null && Options.RowBackgroundColors.Any())
-            options["rowBackgroundColors"] = Options.RowBackgroundColors;
-
-        // Layout Options
-        if (Options.RowHeight.HasValue)
-            options["rowHeight"] = Options.RowHeight.Value;
-
-        // Interactivity Options
-        if (Options.EnableToolbar.HasValue)
-            options["enableToolbar"] = Options.EnableToolbar.Value;
-
-        if (Options.EnableTaskDrag.HasValue)
-            options["enableTaskDrag"] = Options.EnableTaskDrag.Value;
-
-        if (Options.EnableTaskEdit.HasValue)
-            options["enableTaskEdit"] = Options.EnableTaskEdit.Value;
-
-        if (Options.EnableTaskResize.HasValue)
-            options["enableTaskResize"] = Options.EnableTaskResize.Value;
-
-        if (Options.EnableExport.HasValue)
-            options["enableExport"] = Options.EnableExport.Value;
-
-        if (Options.EnableResize.HasValue)
-            options["enableResize"] = Options.EnableResize.Value;
-
-        // Dependency/Arrow Options
-        if (!string.IsNullOrEmpty(Options.ArrowColor))
-            options["arrowColor"] = Options.ArrowColor;
-
-        // Custom Options (applied last to allow overrides)
-        if (Options.CustomOptions != null)
+    /// <summary>Adds a dependency between two tasks. Returns false if the link is invalid (e.g. a cycle).</summary>
+    public async Task<bool> AddDependencyAsync(string fromId, string toId, DependencyType? type = null, int? lag = null)
+    {
+        if (_interop is null) return false;
+        string? optsJson = null;
+        if (type.HasValue || lag.HasValue)
         {
-            foreach (var kvp in Options.CustomOptions)
-            {
-                options[kvp.Key] = kvp.Value;
-            }
+            var opts = new Dictionary<string, object>();
+            if (type.HasValue) opts["type"] = type.Value;
+            if (lag.HasValue) opts["lag"] = lag.Value;
+            optsJson = GanttSerializer.Serialize(opts);
         }
-
-        // convert and add tasks in apexgantt format
-        var taskList = Tasks ?? Options.Tasks;
-        if (taskList != null && taskList.Any())
-        {
-            var formattedTasks = taskList.Select(t =>
-            {
-                var task = new Dictionary<string, object?>
-                {
-                    ["id"] = t.Id,
-                    ["name"] = t.Name,
-                    ["startTime"] = FormatDate(t.StartTime),
-                    ["endTime"] = FormatDate(t.EndTime),
-                    ["progress"] = t.Progress,
-                    ["parentId"] = t.ParentId
-                };
-
-                // Add optional task properties
-                if (!string.IsNullOrEmpty(t.Dependency))
-                    task["dependency"] = t.Dependency;
-
-                if (!string.IsNullOrEmpty(t.Color))
-                    task["color"] = t.Color;
-
-                if (!string.IsNullOrEmpty(t.ClassName))
-                    task["className"] = t.ClassName;
-
-                return task;
-            }).ToList();
-
-            options["series"] = formattedTasks;
-        }
-
-        return options;
+        return await _interop.AddDependencyAsync(_chartId, fromId, toId, optsJson);
     }
 
-    private string? FormatDate(object? date)
+    /// <summary>Removes a dependency between two tasks.</summary>
+    public async Task<bool> RemoveDependencyAsync(string fromId, string toId)
+        => _interop is not null && await _interop.RemoveDependencyAsync(_chartId, fromId, toId);
+
+    /// <summary>Undoes the last change. Returns false if there is nothing to undo.</summary>
+    public async Task<bool> UndoAsync() => _interop is not null && await _interop.UndoAsync(_chartId);
+
+    /// <summary>Redoes the last undone change. Returns false if there is nothing to redo.</summary>
+    public async Task<bool> RedoAsync() => _interop is not null && await _interop.RedoAsync(_chartId);
+
+    /// <summary>Whether an undo is available.</summary>
+    public async Task<bool> CanUndoAsync() => _interop is not null && await _interop.CanUndoAsync(_chartId);
+
+    /// <summary>Whether a redo is available.</summary>
+    public async Task<bool> CanRedoAsync() => _interop is not null && await _interop.CanRedoAsync(_chartId);
+
+    /// <summary>Clears the undo/redo history.</summary>
+    public async Task ClearHistoryAsync()
     {
-        if (date == null) return null;
-
-        // if already a string, return as-is
-        if (date is string dateStr)
-            return dateStr;
-
-        // if DateTime, convert to MM-DD-YYYY format
-        if (date is DateTime dateTime)
-            return dateTime.ToString("MM-dd-yyyy");
-
-        return date.ToString();
+        if (_interop is not null) await _interop.ClearHistoryAsync(_chartId);
     }
 
-    /// <summary>
-    /// called from JavaScript when task update event occurs
-    /// </summary>
-    [JSInvokable]
-    public async Task HandleTaskUpdate(TaskUpdateEventArgs args)
+    /// <summary>Sorts the task list by the given criteria.</summary>
+    public async Task SortAsync(params SortCriterion[] criteria)
     {
-        if (OnTaskUpdate.HasDelegate)
-        {
-            await OnTaskUpdate.InvokeAsync(args);
-        }
+        if (_interop is null) return;
+        await _interop.SortAsync(_chartId, GanttSerializer.Serialize(criteria));
     }
 
-    /// <summary>
-    /// called from JavaScript when task update success event occurs
-    /// </summary>
-    [JSInvokable]
-    public async Task HandleTaskUpdateSuccess(TaskUpdateSuccessEventArgs args)
+    /// <summary>Clears sorting (returns to natural order).</summary>
+    public async Task ClearSortAsync()
     {
-        if (OnTaskUpdateSuccess.HasDelegate)
-        {
-            await OnTaskUpdateSuccess.InvokeAsync(args);
-        }
+        if (_interop is not null) await _interop.ClearSortAsync(_chartId);
     }
 
-    /// <summary>
-    /// called from JavaScript when task update error event occurs
-    /// </summary>
-    [JSInvokable]
-    public async Task HandleTaskUpdateError(TaskUpdateErrorEventArgs args)
+    /// <summary>Groups the task list by a column key.</summary>
+    public async Task GroupByAsync(string columnKey)
     {
-        if (OnTaskUpdateError.HasDelegate)
-        {
-            await OnTaskUpdateError.InvokeAsync(args);
-        }
+        if (_interop is not null) await _interop.GroupByAsync(_chartId, columnKey);
     }
 
-    /// <summary>
-    /// called from JavaScript when task validation error event occurs
-    /// </summary>
-    [JSInvokable]
-    public async Task HandleTaskValidationError(TaskValidationErrorEventArgs args)
+    /// <summary>Clears grouping.</summary>
+    public async Task ClearGroupingAsync()
     {
-        if (OnTaskValidationError.HasDelegate)
-        {
-            await OnTaskValidationError.InvokeAsync(args);
-        }
+        if (_interop is not null) await _interop.ClearGroupingAsync(_chartId);
     }
 
-    /// <summary>
-    /// called from JavaScript when task dragged event occurs
-    /// </summary>
-    [JSInvokable]
-    public async Task HandleTaskDragged(TaskDraggedEventArgs args)
+    /// <summary>Applies a structured filter rule set (a plain object matching the core FilterRuleSet), or clears it when null.</summary>
+    public async Task SetFilterRulesAsync(object? ruleSet)
     {
-        if (OnTaskDragged.HasDelegate)
-        {
-            await OnTaskDragged.InvokeAsync(args);
-        }
+        if (_interop is null) return;
+        await _interop.SetFilterRulesAsync(_chartId, ruleSet is null ? null : GanttSerializer.Serialize(ruleSet));
     }
 
-    /// <summary>
-    /// called from JavaScript when task resized event occurs
-    /// </summary>
-    [JSInvokable]
-    public async Task HandleTaskResized(TaskResizedEventArgs args)
+    /// <summary>Clears any active filter.</summary>
+    public async Task ClearFilterAsync()
     {
-        if (OnTaskResized.HasDelegate)
-        {
-            await OnTaskResized.InvokeAsync(args);
-        }
+        if (_interop is not null) await _interop.ClearFilterAsync(_chartId);
     }
+
+    /// <summary>Sets an explicit pixel width for a column.</summary>
+    public async Task SetColumnWidthAsync(string key, int width)
+    {
+        if (_interop is not null) await _interop.SetColumnWidthAsync(_chartId, key, width);
+    }
+
+    /// <summary>Resets column widths to auto (all columns, or one when a key is given).</summary>
+    public async Task ResetColumnWidthsAsync(string? key = null)
+    {
+        if (_interop is not null) await _interop.ResetColumnWidthsAsync(_chartId, key);
+    }
+
+    /// <summary>Sets the left-to-right column order.</summary>
+    public async Task SetColumnOrderAsync(params string[] order)
+    {
+        if (_interop is null) return;
+        await _interop.SetColumnOrderAsync(_chartId, GanttSerializer.Serialize(order));
+    }
+
+    /// <summary>Gets the current column order.</summary>
+    public async Task<string[]> GetColumnOrderAsync()
+        => _interop is null ? Array.Empty<string>() : await _interop.GetColumnOrderAsync(_chartId);
+
+    /// <summary>Scrolls the timeline to a task. Returns false if the task is not found.</summary>
+    public async Task<bool> ScrollToTaskAsync(string taskId)
+        => _interop is not null && await _interop.ScrollToTaskAsync(_chartId, taskId);
+
+    /// <summary>Gets the currently selected tasks.</summary>
+    public async Task<List<GanttTaskInfo>> GetSelectedTasksAsync()
+        => _interop is null ? new() : await _interop.GetSelectedTasksAsync<List<GanttTaskInfo>>(_chartId);
+
+    /// <summary>Sets the selected tasks by id.</summary>
+    public async Task SetSelectedTasksAsync(params string[] ids)
+    {
+        if (_interop is null) return;
+        await _interop.SetSelectedTasksAsync(_chartId, GanttSerializer.Serialize(ids));
+    }
+
+    /// <summary>Clears the selection.</summary>
+    public async Task ClearSelectionAsync()
+    {
+        if (_interop is not null) await _interop.ClearSelectionAsync(_chartId);
+    }
+
+    /// <summary>Zooms the timeline in.</summary>
+    public async Task ZoomInAsync()
+    {
+        if (_interop is not null) await _interop.ZoomInAsync(_chartId);
+    }
+
+    /// <summary>Zooms the timeline out.</summary>
+    public async Task ZoomOutAsync()
+    {
+        if (_interop is not null) await _interop.ZoomOutAsync(_chartId);
+    }
+
+    /// <summary>Exports the chart. Defaults to the configured export format when none is given.</summary>
+    public async Task ExportChartAsync(GanttExportFormat? format = null)
+    {
+        if (_interop is null) return;
+        await _interop.ExportChartAsync(_chartId, format?.ToString().ToLowerInvariant());
+    }
+
+    // --- JS -> .NET event bridge --------------------------------------------
+    [JSInvokable] public Task HandleTaskUpdate(TaskUpdateEventArgs a) => Invoke(OnTaskUpdate, a);
+    [JSInvokable] public Task HandleTaskUpdateSuccess(TaskUpdateSuccessEventArgs a) => Invoke(OnTaskUpdateSuccess, a);
+    [JSInvokable] public Task HandleTaskUpdateError(TaskUpdateErrorEventArgs a) => Invoke(OnTaskUpdateError, a);
+    [JSInvokable] public Task HandleTaskValidationError(TaskValidationErrorEventArgs a) => Invoke(OnTaskValidationError, a);
+    [JSInvokable] public Task HandleTaskDragged(TaskDraggedEventArgs a) => Invoke(OnTaskDragged, a);
+    [JSInvokable] public Task HandleTaskResized(TaskResizedEventArgs a) => Invoke(OnTaskResized, a);
+    [JSInvokable] public Task HandleTaskAdded(TaskAddedEventArgs a) => Invoke(OnTaskAdded, a);
+    [JSInvokable] public Task HandleTaskDeleted(TaskDeletedEventArgs a) => Invoke(OnTaskDeleted, a);
+    [JSInvokable] public Task HandleTaskMoved(TaskMovedEventArgs a) => Invoke(OnTaskMoved, a);
+    [JSInvokable] public Task HandleTaskProgressChanged(TaskProgressChangedEventArgs a) => Invoke(OnTaskProgressChanged, a);
+    [JSInvokable] public Task HandleDependencyAdded(DependencyChangeEventArgs a) => Invoke(OnDependencyAdded, a);
+    [JSInvokable] public Task HandleDependencyRemoved(DependencyChangeEventArgs a) => Invoke(OnDependencyRemoved, a);
+    [JSInvokable] public Task HandleSelectionChange(SelectionChangeEventArgs a) => Invoke(OnSelectionChange, a);
+    [JSInvokable] public Task HandleDependencyArrowUpdate(DependencyArrowUpdateEventArgs a) => Invoke(OnDependencyArrowUpdate, a);
+    [JSInvokable] public Task HandleHistoryChange(HistoryChangeEventArgs a) => Invoke(OnHistoryChange, a);
+    [JSInvokable] public Task HandleSortChange(SortChangeEventArgs a) => Invoke(OnSortChange, a);
+    [JSInvokable] public Task HandleFilterChange(FilterChangeEventArgs a) => Invoke(OnFilterChange, a);
+    [JSInvokable] public Task HandleGroupChange(GroupChangeEventArgs a) => Invoke(OnGroupChange, a);
+    [JSInvokable] public Task HandleColumnResize(ColumnResizeEventArgs a) => Invoke(OnColumnResize, a);
+    [JSInvokable] public Task HandleColumnReorder(ColumnReorderEventArgs a) => Invoke(OnColumnReorder, a);
+
+    private static Task Invoke<T>(EventCallback<T> callback, T args)
+        => callback.HasDelegate ? callback.InvokeAsync(args) : Task.CompletedTask;
 
     public async ValueTask DisposeAsync()
     {
-        if (_interop != null && _chartInitialized)
+        if (_interop is not null)
         {
-            await _interop.DestroyAsync(_chartId);
+            if (_chartInitialized)
+            {
+                try { await _interop.DestroyAsync(_chartId); }
+                catch (JSDisconnectedException) { /* circuit already gone */ }
+            }
             await _interop.DisposeAsync();
         }
-
         _dotNetRef?.Dispose();
     }
 }

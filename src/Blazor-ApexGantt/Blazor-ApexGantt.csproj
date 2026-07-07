@@ -23,9 +23,15 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.3.0</Version>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.3.0.0</FileVersion>
+    <PackageReleaseNotes>
+      1.3.0 Update ApexGantt core to 3.15.0 (from ~3.11). Load the core as a self-contained ES module (no script tag or CDN needed). Port the expanded 3.15 API: dependencies-as-objects with lag/type, baselines, working calendar, assignees, task segments, summary bars, column configuration, sorting/grouping/filtering, critical path, crosshair, undo/redo history, and many appearance options; add all 20 core events and a public method API (task CRUD, dependencies, undo/redo, sort/group/filter, columns, selection, zoom, export). Note: the obsolete ViewMode and EnableToolbar options were removed (use PixelsPerDay and the toolbar options); per-task Color/ClassName/CustomData were replaced by BarBackgroundColor/RowBackgroundColor and inline additional data.
+
+      1.2.0 License Manager
+      1.0.0 Initial release
+    </PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

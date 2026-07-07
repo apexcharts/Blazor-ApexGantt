@@ -41,13 +41,11 @@ git clone https://github.com/apexcharts/Blazor-ApexGantt.git
 
 ## Quick Start
 
-### 1. Install ApexGantt JavaScript Library
+### 1. No script tag needed
 
-Add to your `wwwroot/index.html` (WebAssembly) or `Pages/_Host.cshtml` (Server):
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/apexgantt@latest/dist/apexgantt.min.js"></script>
-```
+The ApexGantt core library (v3.15.0) is bundled with this package and loaded on demand
+as an ES module, so you do not need to add any `<script>` tag or CDN reference. Just
+install the NuGet package and register the services (see Setup below).
 
 ### 2. Add Using Directives
 
@@ -68,8 +66,8 @@ In your component or `_Imports.razor`:
     {
         Width = "100%",
         Height = "600px",
-        ViewMode = "week",
-        EnableToolbar = true
+        PixelsPerDay = 40,
+        EnableTooltip = true
     };
 
     private List<GanttTask> tasks = new()
