@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Blazor_ApexGantt.Serialization;
 
 namespace Blazor_ApexGantt.Models;
 
@@ -49,6 +50,13 @@ public class CalendarOptions
     /// <summary>Render hatched/tinted bands over non-working columns.</summary>
     public bool? ShowNonWorkingStripes { get; set; }
 
+    /// <summary>
+    /// Tooltip for a holiday stripe. A JavaScript function <c>ctx =&gt; string</c> returning
+    /// HTML, where <c>ctx.date</c> is the holiday's Date and <c>ctx.label</c> is the label from
+    /// the matching <see cref="Holidays"/> entry (undefined for a plain date).
+    /// </summary>
+    public JsFunction? HolidayTooltip { get; set; }
+
     /// <summary>What happens when a drag/resize commit lands on a non-working day.</summary>
     public DragSnapMode? DragSnapMode { get; set; }
 }
@@ -67,6 +75,13 @@ public class DependencyOptions
 
     /// <summary>Allow linking a summary task to one of its own descendants.</summary>
     public bool? AllowSummaryDescendantLinks { get; set; }
+
+    /// <summary>
+    /// Tooltip for a dependency arrow. A JavaScript function <c>ctx =&gt; string</c> returning
+    /// HTML, where <c>ctx</c> carries <c>fromTask</c>, <c>toTask</c>, <c>type</c> (FS, FF, SS, SF)
+    /// and <c>lag</c> (days). Needs a non-zero <see cref="HitWidth"/> so the arrow can be hovered.
+    /// </summary>
+    public JsFunction? TooltipTemplate { get; set; }
 }
 
 /// <summary>Bar-label placement and content options.</summary>

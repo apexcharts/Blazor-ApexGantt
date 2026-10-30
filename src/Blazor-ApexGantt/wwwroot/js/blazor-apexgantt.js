@@ -47,6 +47,45 @@ function toPayload(name, detail) {
   return detail;
 }
 
+// The marker JsFunction serializes to. Any object of this exact shape, anywhere in the options
+// tree, is a function the caller wrote in C# as source.
+const FN_MARKER = "__apexJsFn";
+
+/**
+ * Revive `{ "__apexJsFn": "<source>" }` markers into real functions, in place.
+ *
+ * Compiled with `new Function` and therefore evaluated in the global scope: a template can see
+ * `window` and cannot see the caller's C# state, which is the same contract the other framework
+ * wrappers give a template written in the host language.
+ */
+function reviveFunctions(value) {
+  if (value === null || typeof value !== "object") return value;
+
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) value[i] = reviveFunctions(value[i]);
+    return value;
+  }
+
+  const keys = Object.keys(value);
+  if (keys.length === 1 && keys[0] === FN_MARKER && typeof value[FN_MARKER] === "string") {
+    const source = value[FN_MARKER];
+    try {
+      // Wrapped in a return so both `x => ...` and `function (x) { ... }` are expressions.
+      return new Function(`"use strict"; return (${source});`)();
+    } catch (error) {
+      console.error("apexgantt: could not compile a JsFunction:", source, error);
+      return undefined;
+    }
+  }
+
+  for (const key of keys) value[key] = reviveFunctions(value[key]);
+  return value;
+}
+
+function parseOptions(optionsJson) {
+  return reviveFunctions(JSON.parse(optionsJson));
+}
+
 function chartOf(elementId) {
   const chart = instances[elementId];
   if (!chart) throw new Error(`ApexGantt instance not found: ${elementId}`);
@@ -75,7 +114,7 @@ export function init(elementId, optionsJson, dotNetRef) {
       return false;
     }
 
-    const options = JSON.parse(optionsJson);
+    const options = parseOptions(optionsJson);
 
     // resolve percentage/auto width to actual pixels against the container
     if (
@@ -117,7 +156,7 @@ export function init(elementId, optionsJson, dotNetRef) {
 }
 
 export function update(elementId, optionsJson) {
-  chartOf(elementId).update(JSON.parse(optionsJson));
+  chartOf(elementId).update(parseOptions(optionsJson));
 }
 
 export function destroy(elementId) {

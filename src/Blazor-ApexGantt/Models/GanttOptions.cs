@@ -1,13 +1,15 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Blazor_ApexGantt.Serialization;
 
 namespace Blazor_ApexGantt.Models;
 
 /// <summary>
 /// Configuration options for the gantt chart. Mirrors the high-value surface of the core
 /// <c>GanttUserOptions</c> (apexgantt 3.15). Anything not modeled here can be supplied via
-/// <see cref="AdditionalOptions"/>, including function-typed options (renderers, hooks,
-/// formatters) which must be passed as raw values through that escape hatch.
+/// <see cref="AdditionalOptions"/>. Function-typed options (renderers, hooks, formatters) are
+/// written as a <see cref="JsFunction"/>, whether through a typed property such as
+/// <see cref="TooltipTemplate"/> or as a value in <see cref="AdditionalOptions"/>.
 /// </summary>
 public class GanttOptions
 {
@@ -119,6 +121,21 @@ public class GanttOptions
 
     /// <summary>Custom element id used for the tooltip.</summary>
     public string? TooltipId { get; set; }
+
+    /// <summary>
+    /// Custom task tooltip. A JavaScript function <c>(task, dateFormat) =&gt; string</c> that
+    /// returns the HTML shown when a task bar or milestone is hovered. <c>task</c> is the core's
+    /// resolved task (<c>name</c>, <c>startTime</c>, <c>endTime</c>, <c>progress</c>, <c>type</c>,
+    /// and any extra fields from <see cref="GanttTask.AdditionalData"/>); <c>dateFormat</c> is the
+    /// chart's <see cref="InputDateFormat"/>. When omitted, the built-in tooltip is used. Has no
+    /// effect when <see cref="EnableTooltip"/> is false.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// TooltipTemplate = JsFunction.From("task => `&lt;b&gt;${task.name}&lt;/b&gt;&lt;br&gt;${task.progress}% done`"),
+    /// </code>
+    /// </example>
+    public JsFunction? TooltipTemplate { get; set; }
 
     // --- Annotations / project boundary ------------------------------------
 
@@ -280,8 +297,9 @@ public class GanttOptions
     public List<GanttTask>? Tasks { get; set; }
 
     /// <summary>
-    /// Escape hatch for any core option not modeled above (including function-typed options).
-    /// Keys must be the exact camelCase names the core expects; values are serialized as-is.
+    /// Escape hatch for any core option not modeled above. Keys must be the exact camelCase
+    /// names the core expects; values are serialized as-is, and a <see cref="JsFunction"/>
+    /// value arrives in the browser as a real function.
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, object>? AdditionalOptions { get; set; }

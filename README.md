@@ -54,6 +54,7 @@ In your component or `_Imports.razor`:
 ```csharp
 @using Blazor_ApexGantt.Components
 @using Blazor_ApexGantt.Models
+@using Blazor_ApexGantt.Serialization   // for JsFunction (custom tooltips)
 ```
 
 ### 3. Create Your First Gantt Chart
@@ -79,7 +80,7 @@ In your component or `_Imports.razor`:
             StartTime = DateTime.Now,
             EndTime = DateTime.Now.AddDays(7),
             Progress = 100,
-            Color = "#3b82f6"
+            BarBackgroundColor = "#3b82f6"
         },
         new GanttTask
         {
@@ -88,7 +89,7 @@ In your component or `_Imports.razor`:
             StartTime = DateTime.Now.AddDays(7),
             EndTime = DateTime.Now.AddDays(21),
             Progress = 45,
-            Color = "#10b981",
+            BarBackgroundColor = "#10b981",
             Dependency = "task1"
         }
     };
@@ -159,35 +160,39 @@ Configure your Gantt chart with comprehensive options:
 var options = new GanttOptions
 {
     // Basic Settings
-    Title = "Project Timeline",
     Width = "100%",
     Height = "600px",
-    ViewMode = "week", // day, week, month, quarter, year
+    PixelsPerDay = 40,          // zoom: ~40 = week, ~12 = month, ~4 = quarter; omit to auto-fit
     TasksContainerWidth = 500,
 
     // Visual Styling
     BarBackgroundColor = "#3b82f6",
     BarTextColor = "#ffffff",
-    BarBorderRadius = 4,
+    BarBorderRadius = "4px",
     BarMargin = 10,
     RowHeight = 40,
     RowBackgroundColors = new List<string> { "#f9fafb", "#ffffff" },
+    MilestoneColor = "#e11d48",
 
     // Interactivity
-    EnableToolbar = true,
+    EnableTaskCRUDToolbar = true,
     EnableTaskDrag = true,
     EnableTaskResize = true,
     EnableTaskEdit = true,
     EnableExport = true,
     EnableResize = true,
 
+    // Tooltip
+    EnableTooltip = true,
+    TooltipTemplate = JsFunction.From("task => `<b>${task.name}</b> ${task.progress}%`"),
+
     // Dependencies
     ArrowColor = "#94a3b8",
 
-    // Custom Options (for advanced ApexGantt features)
-    CustomOptions = new Dictionary<string, object>
+    // Any core option not modeled above, keyed by its exact camelCase name
+    AdditionalOptions = new Dictionary<string, object>
     {
-        { "customProperty", "customValue" }
+        { "someCoreOption", "value" }
     }
 };
 ```
@@ -199,22 +204,77 @@ Define tasks with rich properties:
 ```csharp
 var task = new GanttTask
 {
-    Id = "unique-id",              // Required: Unique identifier
-    Name = "Task Name",             // Required: Display name
-    StartTime = DateTime.Now,       // Required: Start date/time
-    EndTime = DateTime.Now.AddDays(5), // Required: End date/time
-    Progress = 75,                  // Optional: 0-100 percentage
-    ParentId = "parent-task-id",    // Optional: For hierarchical tasks
-    Dependency = "dependent-task-id", // Optional: Task this depends on
-    Color = "#3b82f6",              // Optional: Custom bar color
-    ClassName = "custom-class",     // Optional: Custom CSS class
-    CustomData = new Dictionary<string, object> // Optional: Additional data
+    Id = "unique-id",                  // Required: Unique identifier
+    Name = "Task Name",                // Required: Display name
+    StartTime = DateTime.Now,          // Required: Start date (DateTime or string)
+    EndTime = DateTime.Now.AddDays(5), // Optional: omit it for a milestone
+    Type = TaskType.Task,              // Optional: Task (bar, default) or Milestone (diamond)
+    Progress = 75,                     // Optional: 0-100 percentage
+    ParentId = "parent-task-id",       // Optional: For hierarchical tasks
+    Dependency = "dependent-task-id",  // Optional: Task id, or a TaskDependency for FS/SS/FF/SF + lag
+    BarBackgroundColor = "#3b82f6",    // Optional: Custom bar color
+    RowBackgroundColor = "#f8fafc",    // Optional: Custom row color
+    AdditionalData = new()             // Optional: extra fields, readable from a tooltip template
     {
-        { "priority", "high" },
-        { "assignee", "John Doe" }
+        ["priority"] = JsonSerializer.SerializeToElement("high")
     }
 };
 ```
+
+### Milestones
+
+Set `Type = TaskType.Milestone` and the task renders as a diamond on its `StartTime`. A task with
+no `EndTime` renders as a milestone too. `MilestoneColor` on `GanttOptions` sets the diamond color.
+
+```csharp
+new GanttTask
+{
+    Id = "launch",
+    Name = "Launch",
+    Type = TaskType.Milestone,
+    StartTime = new DateTime(2025, 3, 1),
+    Dependency = "qa"
+}
+```
+
+### Custom Tooltips
+
+The tooltip options that take a function in the core take a `JsFunction` here: JavaScript source
+written in C#, compiled once in the browser.
+
+| Option | Signature | Shown on |
+| --- | --- | --- |
+| `GanttOptions.TooltipTemplate` | `(task, dateFormat) => string` | hovering a task bar or milestone |
+| `DependencyOptions.TooltipTemplate` | `ctx => string` (`fromTask`, `toTask`, `type`, `lag`) | hovering a dependency arrow (needs a non-zero `HitWidth`) |
+| `CalendarOptions.HolidayTooltip` | `ctx => string` (`date`, `label`) | hovering a holiday stripe |
+
+```csharp
+var options = new GanttOptions
+{
+    EnableTooltip = true,
+    TooltipTemplate = JsFunction.From(@"
+        (task) => task.type === 'milestone'
+          ? `<b>${task.name}</b><div>Milestone</div>`
+          : `<b>${task.name}</b><div>${task.progress}% complete</div><div>Owner: ${task.owner ?? '-'}</div>`"),
+    Dependencies = new DependencyOptions
+    {
+        HitWidth = 10,
+        TooltipTemplate = JsFunction.From("ctx => `${ctx.fromTask.name} → ${ctx.toTask.name} (${ctx.type})`")
+    }
+};
+```
+
+`task` is the core's resolved task, so it carries `name`, `startTime`, `endTime`, `progress` and
+`type`, plus any field you put in `GanttTask.AdditionalData` (`task.owner` above).
+
+These run synchronously on every hover, which is why they are JavaScript rather than a .NET
+callback: Blazor's interop is asynchronous and cannot hand back the HTML in time. A `JsFunction` is
+compiled with `new Function`, so it runs in the global scope: it can see `window` and anything your
+app put there, and it cannot see your C# variables, so interpolate the values it needs. It is
+evaluated as code, so never build one from untrusted input.
+
+A `JsFunction` also works as a value in `AdditionalOptions`, for any other function-typed core
+option that has no typed property yet.
 
 ## Examples
 
@@ -230,7 +290,7 @@ A simple Gantt chart with three tasks:
     {
         Width = "100%",
         Height = "400px",
-        ViewMode = "day"
+        PixelsPerDay = 40
     };
 
     private List<GanttTask> basicTasks = new()
@@ -257,8 +317,8 @@ Enable all interactive features and show task dependencies:
     {
         Width = "100%",
         Height = "600px",
-        ViewMode = "week",
-        EnableToolbar = true,
+        PixelsPerDay = 40,
+        EnableTaskCRUDToolbar = true,
         EnableTaskDrag = true,
         EnableTaskResize = true,
         EnableTaskEdit = true,
@@ -269,15 +329,15 @@ Enable all interactive features and show task dependencies:
     private List<GanttTask> interactiveTasks = new()
     {
         new() { Id = "1", Name = "Requirements", StartTime = DateTime.Now,
-                EndTime = DateTime.Now.AddDays(3), Progress = 100, Color = "#10b981" },
+                EndTime = DateTime.Now.AddDays(3), Progress = 100, BarBackgroundColor = "#10b981" },
         new() { Id = "2", Name = "Design", StartTime = DateTime.Now.AddDays(3),
-                EndTime = DateTime.Now.AddDays(7), Progress = 80, Color = "#3b82f6",
+                EndTime = DateTime.Now.AddDays(7), Progress = 80, BarBackgroundColor = "#3b82f6",
                 Dependency = "1" },
         new() { Id = "3", Name = "Implementation", StartTime = DateTime.Now.AddDays(7),
-                EndTime = DateTime.Now.AddDays(21), Progress = 40, Color = "#f59e0b",
+                EndTime = DateTime.Now.AddDays(21), Progress = 40, BarBackgroundColor = "#f59e0b",
                 Dependency = "2" },
         new() { Id = "4", Name = "QA Testing", StartTime = DateTime.Now.AddDays(21),
-                EndTime = DateTime.Now.AddDays(28), Progress = 0, Color = "#ef4444",
+                EndTime = DateTime.Now.AddDays(28), Progress = 0, BarBackgroundColor = "#ef4444",
                 Dependency = "3" }
     };
 }
@@ -295,10 +355,10 @@ Apply custom colors and styling:
     {
         Width = "100%",
         Height = "500px",
-        ViewMode = "month",
+        PixelsPerDay = 4,
         BarBackgroundColor = "#1e293b",
         BarTextColor = "#f8fafc",
-        BarBorderRadius = 8,
+        BarBorderRadius = "8px",
         BarMargin = 15,
         RowHeight = 50,
         RowBackgroundColors = new List<string> { "#f1f5f9", "#ffffff" }
@@ -307,11 +367,11 @@ Apply custom colors and styling:
     private List<GanttTask> styledTasks = new()
     {
         new() { Id = "1", Name = "Q1 Planning", StartTime = new DateTime(2025, 1, 1),
-                EndTime = new DateTime(2025, 3, 31), Progress = 100, Color = "#8b5cf6" },
+                EndTime = new DateTime(2025, 3, 31), Progress = 100, BarBackgroundColor = "#8b5cf6" },
         new() { Id = "2", Name = "Q2 Execution", StartTime = new DateTime(2025, 4, 1),
-                EndTime = new DateTime(2025, 6, 30), Progress = 50, Color = "#ec4899" },
+                EndTime = new DateTime(2025, 6, 30), Progress = 50, BarBackgroundColor = "#ec4899" },
         new() { Id = "3", Name = "Q3 Review", StartTime = new DateTime(2025, 7, 1),
-                EndTime = new DateTime(2025, 9, 30), Progress = 0, Color = "#14b8a6" }
+                EndTime = new DateTime(2025, 9, 30), Progress = 0, BarBackgroundColor = "#14b8a6" }
     };
 }
 ```
@@ -324,6 +384,7 @@ The repository includes a comprehensive sample application showcasing all featur
 - **Styling Demo** - Custom colors, borders, and row styling
 - **Interactive Demo** - Drag, resize, edit, and export capabilities
 - **Dependencies Demo** - Task dependency arrows and relationships
+- **Milestones & Tooltips Demo** - Diamond milestones and custom HTML tooltips
 - **Advanced Demo** - Complete project timeline with all features combined
 
 Run the demo:

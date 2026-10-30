@@ -1,0 +1,76 @@
+@page "/milestones-tooltips-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+@using Blazor_ApexGantt.Serialization
+
+<PageTitle>Milestones &amp; Tooltips Demo</PageTitle>
+
+<h1>Milestones &amp; Custom Tooltips</h1>
+<p>
+    Milestones render as diamonds via <code>Type = TaskType.Milestone</code>. The tooltip is a
+    <code>JsFunction</code>: it runs in the browser on every hover, so it can read any task field,
+    including the extra ones passed through <code>AdditionalData</code>.
+</p>
+
+<div class="mb-4">
+    <h3>Release Plan</h3>
+    <p class="text-muted">Hover a bar, a milestone or a dependency arrow.</p>
+    <ApexGantt Options="@options" Tasks="@tasks" />
+</div>
+
+@code {
+    private static readonly DateTime Start = DateTime.Today;
+
+    private GanttOptions options = new()
+    {
+        Width = "100%",
+        Height = "460px",
+        MilestoneColor = "#e11d48",
+        EnableTooltip = true,
+        TooltipTemplate = JsFunction.From(@"
+            (task) => {
+              const kind = task.type === 'milestone' ? 'Milestone' : `${task.progress}% complete`;
+              const owner = task.owner ? `<div>Owner: ${task.owner}</div>` : '';
+              return `<div class='custom-gantt-tooltip' style='padding:4px 2px'>
+                        <strong>${task.name}</strong>
+                        <div>${kind}</div>
+                        ${owner}
+                      </div>`;
+            }"),
+        Dependencies = new DependencyOptions
+        {
+            HitWidth = 10,
+            TooltipTemplate = JsFunction.From(
+                "ctx => `${ctx.fromTask.name} → ${ctx.toTask.name} (${ctx.type}${ctx.lag ? `, ${ctx.lag}d lag` : ''})`"),
+        },
+    };
+
+    private List<GanttTask> tasks = new()
+    {
+        Bar("design", "Design", 0, 6, 100, "Priya"),
+        Bar("build", "Build", 6, 18, 55, "Marco", dependency: "design"),
+        Milestone("beta", "Beta release", 18, dependency: "build"),
+        Bar("test", "Testing", 18, 25, 10, "Aiko", dependency: "beta"),
+        Milestone("launch", "Launch", 26, dependency: "test"),
+    };
+
+    private static GanttTask Bar(string id, string name, int from, int to, double progress, string owner, string? dependency = null) => new()
+    {
+        Id = id,
+        Name = name,
+        StartTime = Start.AddDays(from),
+        EndTime = Start.AddDays(to),
+        Progress = progress,
+        Dependency = dependency,
+        AdditionalData = new() { ["owner"] = System.Text.Json.JsonSerializer.SerializeToElement(owner) },
+    };
+
+    private static GanttTask Milestone(string id, string name, int on, string? dependency = null) => new()
+    {
+        Id = id,
+        Name = name,
+        Type = TaskType.Milestone,
+        StartTime = Start.AddDays(on),
+        Dependency = dependency,
+    };
+}

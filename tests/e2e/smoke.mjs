@@ -29,6 +29,7 @@ const ROUTES = [
   "dependencies-demo",
   "dark-theme-demo",
   "events-demo",
+  "milestones-tooltips-demo",
   "advanced-demo",
 ];
 
@@ -73,6 +74,25 @@ async function checkRoute(route) {
 }
 
 for (const r of ROUTES) await checkRoute(r);
+
+// A JsFunction crosses the interop as a marker object and is only a function once the bridge
+// revives it, so a broken revive still renders the chart and fails on hover instead. Hover a
+// bar on the milestones page and expect the custom template's markup, not the built-in one.
+async function checkCustomTooltip() {
+  const route = "milestones-tooltips-demo";
+  pageErrors = [];
+  await page.goto(BASE + "/" + route, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".gantt-container .bar-timeline", { timeout: 25000 });
+  await page.locator(".gantt-container .bar-timeline").first().hover();
+  const found = await page
+    .waitForSelector(".custom-gantt-tooltip", { state: "attached", timeout: 5000 })
+    .then(() => true, () => false);
+  if (!found) failures.push(`[${route}] hovering a bar did not show the custom TooltipTemplate`);
+  if (pageErrors.length) failures.push(`[${route}] console/page errors on hover: ${JSON.stringify(pageErrors)}`);
+  console.log(`[${route}] customTooltip=${found} errors=${pageErrors.length}`);
+}
+
+await checkCustomTooltip();
 
 await browser.close();
 

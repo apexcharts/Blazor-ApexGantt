@@ -33,7 +33,11 @@ public class GanttTask
     /// <summary>Completion percentage (0-100).</summary>
     public double? Progress { get; set; }
 
-    /// <summary>Visual type of the task (bar or milestone).</summary>
+    /// <summary>
+    /// Visual type of the task: <see cref="TaskType.Task"/> renders a bar,
+    /// <see cref="TaskType.Milestone"/> renders a diamond on <see cref="StartTime"/>.
+    /// Defaults to <see cref="TaskType.Task"/>.
+    /// </summary>
     public TaskType? Type { get; set; }
 
     /// <summary>Parent task id for nested/child tasks.</summary>
