@@ -38,8 +38,18 @@ const launchOpts = channel ? { channel, headless: true } : { headless: true };
 const browser = await chromium.launch(launchOpts);
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 
+// The sample carries the public demo's licence key, locked to apexcharts.github.io, so on
+// localhost the core logs this once per chart. It is expected here and says nothing about the
+// wrapper; any other licence message (an expired or malformed key) still fails the run.
+const IGNORED_ERRORS = [/^\[Apex\] License is not valid for this domain \(localhost\)\./];
+
 let pageErrors = [];
-page.on("console", (m) => { if (m.type() === "error") pageErrors.push(m.text().slice(0, 200)); });
+page.on("console", (m) => {
+  if (m.type() !== "error") return;
+  const text = m.text();
+  if (IGNORED_ERRORS.some((re) => re.test(text))) return;
+  pageErrors.push(text.slice(0, 200));
+});
 page.on("pageerror", (e) => pageErrors.push("PAGEERROR: " + e.message.slice(0, 200)));
 
 // Boot the home page: warms the WASM runtime and asserts the landing page loads clean.
