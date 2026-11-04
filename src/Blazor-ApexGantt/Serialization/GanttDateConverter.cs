@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -7,8 +8,10 @@ namespace Blazor_ApexGantt.Serialization;
 /// <summary>
 /// Serializes a task date that may be supplied as a string or a <see cref="DateTime"/>.
 /// A <see cref="DateTime"/>/<see cref="DateOnly"/> is written as <c>yyyy-MM-dd</c> (the core's
-/// default input date format); strings pass through unchanged. Applied per-property so it does
-/// not affect other <c>object</c>-typed members.
+/// default input date format) in the Gregorian calendar of the invariant culture, so a Thai
+/// Buddhist, Hijri or other non-Gregorian current culture cannot shift the year; strings pass
+/// through unchanged. Applied per-property so it does not affect other <c>object</c>-typed
+/// members.
 /// </summary>
 public class GanttDateConverter : JsonConverter<object>
 {
@@ -31,10 +34,10 @@ public class GanttDateConverter : JsonConverter<object>
         switch (value)
         {
             case DateTime dt:
-                writer.WriteStringValue(dt.ToString("yyyy-MM-dd"));
+                writer.WriteStringValue(dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                 break;
             case DateOnly d:
-                writer.WriteStringValue(d.ToString("yyyy-MM-dd"));
+                writer.WriteStringValue(d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                 break;
             case string s:
                 writer.WriteStringValue(s);

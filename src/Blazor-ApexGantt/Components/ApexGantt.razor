@@ -23,7 +23,15 @@
     [Parameter] public List<GanttTask>? Tasks { get; set; }
 
     // --- Event callbacks -----------------------------------------------------
+    /// <summary>
+    /// Raised as a task edit is applied. Which edits raise it depends on the apexgantt version:
+    /// see <see cref="TaskUpdateEventArgs"/>.
+    /// </summary>
     [Parameter] public EventCallback<TaskUpdateEventArgs> OnTaskUpdate { get; set; }
+    /// <summary>
+    /// Raised after a task edit is stored. Which edits raise it depends on the apexgantt version:
+    /// see <see cref="TaskUpdateEventArgs"/>.
+    /// </summary>
     [Parameter] public EventCallback<TaskUpdateSuccessEventArgs> OnTaskUpdateSuccess { get; set; }
     [Parameter] public EventCallback<TaskUpdateErrorEventArgs> OnTaskUpdateError { get; set; }
     [Parameter] public EventCallback<TaskValidationErrorEventArgs> OnTaskValidationError { get; set; }
@@ -67,28 +75,43 @@
 
     // --- Public API ----------------------------------------------------------
 
-    /// <summary>Re-applies the current <see cref="Options"/> (and tasks) to the live chart.</summary>
+    /// <summary>
+    /// Re-applies the current <see cref="Options"/> to the live chart. The payload carries the
+    /// tasks (<see cref="Tasks"/>, or <c>Options.Tasks</c> when that is null) as the chart's data,
+    /// so it replaces what the chart holds: edits made in the chart (drags, dialog or inline edits)
+    /// that you have not copied into your task list are discarded. From apexgantt 3.20.0 replacing
+    /// the data also clears the undo history.
+    /// </summary>
     public async Task UpdateAsync()
     {
         if (_interop is null || !_chartInitialized) return;
         await _interop.UpdateAsync(_chartId, BuildOptionsJson());
     }
 
-    /// <summary>Adds a task.</summary>
+    /// <summary>Adds a task. Raises <see cref="OnTaskAdded"/>.</summary>
     public async Task AddTaskAsync(GanttTask task)
     {
         if (_interop is null) return;
         await _interop.AddTaskAsync(_chartId, GanttSerializer.Serialize(task));
     }
 
-    /// <summary>Applies partial updates to a task.</summary>
+    /// <summary>
+    /// Applies partial updates to a task: only the non-null fields of
+    /// <paramref name="updates"/> are sent. With the bundled apexgantt 3.15.0 (and up to 3.19)
+    /// this raises no <see cref="OnTaskUpdate"/> or <see cref="OnTaskUpdateSuccess"/>; from
+    /// apexgantt 3.20.0 it raises both.
+    /// </summary>
     public async Task UpdateTaskAsync(string taskId, GanttTask updates)
     {
         if (_interop is null) return;
         await _interop.UpdateTaskAsync(_chartId, taskId, GanttSerializer.Serialize(updates));
     }
 
-    /// <summary>Deletes a task (and its descendants).</summary>
+    /// <summary>
+    /// Deletes a task. No cascade option is passed, so the core's default applies: deleting a task
+    /// that has children throws, as does an unknown id (both surface as a
+    /// <see cref="JSException"/>). Delete or move the children first.
+    /// </summary>
     public async Task DeleteTaskAsync(string taskId)
     {
         if (_interop is null) return;
@@ -103,7 +126,12 @@
         await _interop.MoveTaskAsync(_chartId, taskId, opts);
     }
 
-    /// <summary>Adds a dependency between two tasks. Returns false if the link is invalid (e.g. a cycle).</summary>
+    /// <summary>
+    /// Adds a dependency between two tasks. Returns false when a <c>beforeDependencyChange</c>
+    /// hook vetoes it. Throws a <see cref="JSException"/> when either task id is unknown or the
+    /// link already exists; the method does not check for cycles. Dependencies are drawn and feed
+    /// the critical path; they never move tasks.
+    /// </summary>
     public async Task<bool> AddDependencyAsync(string fromId, string toId, DependencyType? type = null, int? lag = null)
     {
         if (_interop is null) return false;
@@ -118,7 +146,10 @@
         return await _interop.AddDependencyAsync(_chartId, fromId, toId, optsJson);
     }
 
-    /// <summary>Removes a dependency between two tasks.</summary>
+    /// <summary>
+    /// Removes a dependency between two tasks. Returns false when a <c>beforeDependencyChange</c>
+    /// hook vetoes it. Throws a <see cref="JSException"/> when no such link exists.
+    /// </summary>
     public async Task<bool> RemoveDependencyAsync(string fromId, string toId)
         => _interop is not null && await _interop.RemoveDependencyAsync(_chartId, fromId, toId);
 
@@ -147,7 +178,10 @@
         await _interop.SortAsync(_chartId, GanttSerializer.Serialize(criteria));
     }
 
-    /// <summary>Clears sorting (returns to natural order).</summary>
+    /// <summary>
+    /// Clears sorting, so rows follow the order of your task list. (Until you sort or clear,
+    /// rows sort by start date unless <see cref="GanttOptions.SortBy"/> says otherwise.)
+    /// </summary>
     public async Task ClearSortAsync()
     {
         if (_interop is not null) await _interop.ClearSortAsync(_chartId);
@@ -201,22 +235,31 @@
     public async Task<string[]> GetColumnOrderAsync()
         => _interop is null ? Array.Empty<string>() : await _interop.GetColumnOrderAsync(_chartId);
 
-    /// <summary>Scrolls the timeline to a task. Returns false if the task is not found.</summary>
+    /// <summary>
+    /// Scrolls the timeline and the row list so a task's bar is in view. With the bundled
+    /// apexgantt 3.15.0 (and up to 3.19) it returns true when it scrolled and false when the task
+    /// id is unknown or the bar is already in view, and it does not open a collapsed parent. From
+    /// apexgantt 3.20.0 the core first expands any collapsed ancestors.
+    /// </summary>
     public async Task<bool> ScrollToTaskAsync(string taskId)
         => _interop is not null && await _interop.ScrollToTaskAsync(_chartId, taskId);
 
-    /// <summary>Gets the currently selected tasks.</summary>
+    /// <summary>
+    /// Gets the currently selected tasks. Needs <see cref="GanttOptions.EnableSelection"/>;
+    /// without it the selection methods do nothing (from apexgantt 3.20.0 the core also logs a
+    /// one-time warning).
+    /// </summary>
     public async Task<List<GanttTaskInfo>> GetSelectedTasksAsync()
         => _interop is null ? new() : await _interop.GetSelectedTasksAsync<List<GanttTaskInfo>>(_chartId);
 
-    /// <summary>Sets the selected tasks by id.</summary>
+    /// <summary>Sets the selected tasks by id. Needs <see cref="GanttOptions.EnableSelection"/>.</summary>
     public async Task SetSelectedTasksAsync(params string[] ids)
     {
         if (_interop is null) return;
         await _interop.SetSelectedTasksAsync(_chartId, GanttSerializer.Serialize(ids));
     }
 
-    /// <summary>Clears the selection.</summary>
+    /// <summary>Clears the selection. Needs <see cref="GanttOptions.EnableSelection"/>.</summary>
     public async Task ClearSelectionAsync()
     {
         if (_interop is not null) await _interop.ClearSelectionAsync(_chartId);
@@ -234,7 +277,10 @@
         if (_interop is not null) await _interop.ZoomOutAsync(_chartId);
     }
 
-    /// <summary>Exports the chart. Defaults to the configured export format when none is given.</summary>
+    /// <summary>
+    /// Exports the chart as SVG, PNG or PDF (PNG and PDF are raster images). Defaults to
+    /// <see cref="GanttOptions.ExportFormat"/>, which is SVG unless set.
+    /// </summary>
     public async Task ExportChartAsync(GanttExportFormat? format = null)
     {
         if (_interop is null) return;

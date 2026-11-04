@@ -17,15 +17,25 @@ public class GanttTask
     public string? Name { get; set; }
 
     /// <summary>
-    /// Task start date. Accepts a string (parsed with the chart's input date format, default
-    /// YYYY-MM-DD) or a <see cref="System.DateTime"/> (serialized as yyyy-MM-dd).
+    /// Task start date. Accepts a string, parsed with <see cref="GanttOptions.InputDateFormat"/>
+    /// (the core default is "MM-DD-YYYY"), or a <see cref="System.DateTime"/> or
+    /// <see cref="System.DateOnly"/>, which the wrapper always writes as yyyy-MM-dd (the time of
+    /// day is dropped). When you pass DateTime or DateOnly values, set
+    /// <see cref="GanttOptions.InputDateFormat"/> to "YYYY-MM-DD" so the edit dialog and the dates
+    /// the chart writes back match them. A parent task may omit both dates: its summary bar spans
+    /// its children.
     /// </summary>
     [JsonConverter(typeof(GanttDateConverter))]
     public object? StartTime { get; set; }
 
     /// <summary>
-    /// Task end date. When omitted, the task renders as a milestone on <see cref="StartTime"/>.
-    /// Accepts a string or a <see cref="System.DateTime"/>.
+    /// Task end date, in the same forms as <see cref="StartTime"/>. Required for a bar. A milestone
+    /// needs only <see cref="StartTime"/>: set <see cref="Type"/> to <see cref="TaskType.Milestone"/>,
+    /// which is the clearest form and works on every apexgantt version. With the bundled apexgantt
+    /// 3.15.0 (and up to 3.19), a task with a start, no end and no milestone type makes the core
+    /// throw "Task must have an id, start, and end date", and the chart does not render. From
+    /// apexgantt 3.20.0 a task with no end and no <see cref="Type"/> is drawn as a milestone; an
+    /// explicit <see cref="TaskType.Task"/> with no end still throws.
     /// </summary>
     [JsonConverter(typeof(GanttDateConverter))]
     public object? EndTime { get; set; }
@@ -34,9 +44,10 @@ public class GanttTask
     public double? Progress { get; set; }
 
     /// <summary>
-    /// Visual type of the task: <see cref="TaskType.Task"/> renders a bar,
-    /// <see cref="TaskType.Milestone"/> renders a diamond on <see cref="StartTime"/>.
-    /// Defaults to <see cref="TaskType.Task"/>.
+    /// Visual type of the task: <see cref="TaskType.Task"/> renders a bar from
+    /// <see cref="StartTime"/> to <see cref="EndTime"/>, <see cref="TaskType.Milestone"/> renders a
+    /// diamond on <see cref="StartTime"/> and needs no <see cref="EndTime"/>. When omitted, a task
+    /// with both dates is a bar; see <see cref="EndTime"/> for a task with no end date.
     /// </summary>
     public TaskType? Type { get; set; }
 
@@ -46,6 +57,7 @@ public class GanttTask
     /// <summary>
     /// Dependency on another task. Accepts a plain task-id string (treated as Finish-to-Start
     /// with zero lag) or a <see cref="TaskDependency"/> for typed relationships with lag/lead.
+    /// Dependencies are drawn as arrows and feed the critical path; they never move tasks.
     /// </summary>
     public object? Dependency { get; set; }
 
@@ -65,8 +77,11 @@ public class GanttTask
     public List<TaskSegment>? Segments { get; set; }
 
     /// <summary>
-    /// When true, this task renders as a summary (group) bar whose span is computed from its
-    /// descendants. The task's own start/end are ignored.
+    /// Whether a task with children draws a summary (group) bar spanning its descendants'
+    /// earliest start and latest end. Defaults to true for every task that has children, so a
+    /// parent gets a summary bar without setting this. While it is a summary bar, the task's own
+    /// <see cref="StartTime"/> and <see cref="EndTime"/> are not used for it (nothing is logged).
+    /// Set false, and give the task both dates, to draw a parent's own dates as a normal bar.
     /// </summary>
     public bool? ShowSummaryBar { get; set; }
 

@@ -41,7 +41,7 @@ public enum SortDirection
     Desc
 }
 
-/// <summary>Export output format.</summary>
+/// <summary>Export output format: SVG (vector), or PNG and PDF, which are raster images.</summary>
 public enum GanttExportFormat
 {
     Svg,
@@ -81,7 +81,11 @@ public enum SnapUnit
     Minute
 }
 
-/// <summary>Unit for dependency lag: working days (calendar-aware) or raw calendar days.</summary>
+/// <summary>
+/// Values for <see cref="TaskDependency.LagUnit"/>, which has no effect: the core has never read
+/// it, and apexgantt 3.20.0 deprecates it. Lag counts working days when a working calendar is
+/// active and calendar days otherwise.
+/// </summary>
 public enum LagUnit
 {
     Working,

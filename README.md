@@ -43,9 +43,12 @@ git clone https://github.com/apexcharts/Blazor-ApexGantt.git
 
 ### 1. No script tag needed
 
-The ApexGantt core library (v3.15.0) is bundled with this package and loaded on demand
-as an ES module, so you do not need to add any `<script>` tag or CDN reference. Just
-install the NuGet package and register the services (see Setup below).
+The ApexGantt core library (apexgantt 3.15.0) is bundled with this package and loaded on
+demand as an ES module, so you do not need to add any `<script>` tag or CDN reference. Just
+install the NuGet package and register the services (see License Configuration below).
+
+Notes below that name a later apexgantt version (for example "from apexgantt 3.20.0") describe
+core behavior that arrives when the bundled core is updated to that version.
 
 ### 2. Add Using Directives
 
@@ -68,6 +71,7 @@ In your component or `_Imports.razor`:
         Width = "100%",
         Height = "600px",
         PixelsPerDay = 40,
+        InputDateFormat = "YYYY-MM-DD", // matches how the wrapper writes DateTime values
         EnableTooltip = true
     };
 
@@ -98,7 +102,13 @@ In your component or `_Imports.razor`:
 
 ## License Configuration
 
-If you have a commercial license for ApexGantt, you need to configure the license key during application startup.
+ApexGantt is a commercial product, included in the Premium plan and above. There is no free tier
+and no free or community edition: without a valid license key every chart renders with a trial
+watermark, which is for evaluation only. See [LICENSE.md](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE.md)
+for the terms.
+
+Set your license key once at application start. The component hands it to the core before it
+creates each chart, so no chart is drawn with the watermark first.
 
 ### Option 1: Direct Configuration in Program.cs
 
@@ -134,9 +144,10 @@ builder.Services.AddApexGantt(options =>
 await builder.Build().RunAsync();
 ```
 
-### Without License (Free Version)
+### Evaluating Without a Key
 
-If you don't have a license key, simply register the services without configuration:
+To evaluate ApexGantt before you buy, register the services without a key. Every chart then
+renders with the trial watermark:
 
 ```csharp
 using Blazor_ApexGantt.Extensions;
@@ -148,7 +159,8 @@ builder.Services.AddApexGantt();
 await builder.Build().RunAsync();
 ```
 
-> **Note:** The license will be automatically initialized before any charts are rendered. You only need to configure it once during application startup.
+> **Note:** From apexgantt 3.20.0 the core also checks the key's plan: only a Premium or higher
+> key removes the ApexGantt watermark.
 
 ## Configuration
 
@@ -162,8 +174,9 @@ var options = new GanttOptions
     // Basic Settings
     Width = "100%",
     Height = "600px",
-    PixelsPerDay = 40,          // zoom: ~40 = week, ~12 = month, ~4 = quarter; omit to auto-fit
+    PixelsPerDay = 40,          // zoom: ~4.9 = months, ~25.7 = weeks, 80 = days; omit to auto-fit
     TasksContainerWidth = 500,
+    InputDateFormat = "YYYY-MM-DD", // the core default is MM-DD-YYYY; see Dates below
 
     // Visual Styling
     BarBackgroundColor = "#3b82f6",
@@ -175,12 +188,13 @@ var options = new GanttOptions
     MilestoneColor = "#e11d48",
 
     // Interactivity
-    EnableTaskCRUDToolbar = true,
-    EnableTaskDrag = true,
+    EnableSelection = true,       // needed by the selection methods and the toolbar Delete button
+    EnableTaskCRUDToolbar = true, // Add and Delete buttons in the toolbar
+    EnableTaskDrag = true,        // drag bars to new dates (does not reorder rows)
     EnableTaskResize = true,
-    EnableTaskEdit = true,
-    EnableExport = true,
-    EnableResize = true,
+    EnableTaskEdit = true,        // double-click a bar for the edit dialog
+    EnableExport = true,          // toolbar export button, in ExportFormat (SVG unless set)
+    EnableResize = true,          // drag the divider to resize the task-list panel
 
     // Tooltip
     EnableTooltip = true,
@@ -206,9 +220,9 @@ var task = new GanttTask
 {
     Id = "unique-id",                  // Required: Unique identifier
     Name = "Task Name",                // Required: Display name
-    StartTime = DateTime.Now,          // Required: Start date (DateTime or string)
-    EndTime = DateTime.Now.AddDays(5), // Optional: omit it for a milestone
-    Type = TaskType.Task,              // Optional: Task (bar, default) or Milestone (diamond)
+    StartTime = DateTime.Now,          // Start date (DateTime, DateOnly or string); a parent may omit both dates
+    EndTime = DateTime.Now.AddDays(5), // End date: required for a bar, not needed by a milestone
+    Type = TaskType.Task,              // Optional: Task (bar) or Milestone (diamond, needs no EndTime)
     Progress = 75,                     // Optional: 0-100 percentage
     ParentId = "parent-task-id",       // Optional: For hierarchical tasks
     Dependency = "dependent-task-id",  // Optional: Task id, or a TaskDependency for FS/SS/FF/SF + lag
@@ -221,10 +235,35 @@ var task = new GanttTask
 };
 ```
 
+### Dates
+
+`StartTime` and `EndTime` take a `DateTime`, a `DateOnly` or a string. The wrapper writes
+`DateTime` and `DateOnly` values as `yyyy-MM-dd` and sets no date format of its own, while the
+core's default `InputDateFormat` is `MM-DD-YYYY`. Bars still draw under that default, because the
+core falls back to a lenient parse for ISO dates, but two things go wrong:
+
+- The edit dialog reads dates with `InputDateFormat` only, with no ISO fallback, so its date fields
+  come up empty and saving it untouched can store "Invalid Date".
+- Every date the chart writes back after a drag, resize or edit, including the dates in event
+  args, uses `InputDateFormat`, so the chart's data ends up in two formats.
+
+So when you pass `DateTime` or `DateOnly` values, set the format to match:
+
+```csharp
+var options = new GanttOptions { InputDateFormat = "YYYY-MM-DD" };
+```
+
+The time of day in a `DateTime` is dropped. For hour or minute scheduling, pass strings that include
+the time and set a matching format, such as `"YYYY-MM-DD HH:mm"`.
+
 ### Milestones
 
-Set `Type = TaskType.Milestone` and the task renders as a diamond on its `StartTime`. A task with
-no `EndTime` renders as a milestone too. `MilestoneColor` on `GanttOptions` sets the diamond color.
+Set `Type = TaskType.Milestone` and the task renders as a diamond on its `StartTime`; it needs no
+`EndTime`. This is the clearest form and works on every apexgantt version. The bundled apexgantt
+3.15.0 requires it: a task with a `StartTime`, no `EndTime` and no `Type` makes the core throw
+"Task must have an id, start, and end date", and the chart does not render. From apexgantt 3.20.0
+such a task is drawn as a milestone, while an explicit `Type = TaskType.Task` with no `EndTime`
+still throws. `MilestoneColor` on `GanttOptions` sets the diamond color.
 
 ```csharp
 new GanttTask
@@ -237,6 +276,46 @@ new GanttTask
 }
 ```
 
+### Parent Tasks and Summary Bars
+
+Any task with children (tasks whose `ParentId` points at it) draws a summary bar spanning its
+children's earliest start and latest end; you do not need to set `ShowSummaryBar`. A parent may
+omit both dates. If it has dates, the summary bar does not use them, and nothing is logged. Set
+`ShowSummaryBar = false`, and give the parent both dates, to draw its own dates as a normal bar.
+
+### Dependencies
+
+`Dependency` takes a task id (Finish-to-Start, no lag) or a `TaskDependency` with a `Type` (FS,
+SS, FF or SF) and a `Lag` in days (negative for a lead). Lag counts working days when a working
+calendar is active and calendar days otherwise. Dependencies are drawn as arrows and feed the
+critical path and the arrow tooltip; they never move tasks, so dragging a predecessor does not
+reschedule its successors. `TaskDependency.LagUnit` has no effect: the core has never read it,
+and apexgantt 3.20.0 deprecates it.
+
+With the bundled apexgantt 3.15.0 the working calendar is active only when
+`CalendarOptions.WorkingWeekdays` or a non-empty `Holidays` list is set. From apexgantt 3.20.0 any
+`Calendar` object turns it on, with a Monday to Friday week unless you set `WorkingWeekdays`.
+
+### Zoom
+
+Zoom is continuous: `PixelsPerDay` sets it, there are no view modes, and the header tiers follow
+the zoom. Reference points: about 0.5 shows years, 1.6 quarters, 4.9 months, 25.7 weeks and 80
+days. The toolbar zoom buttons and `ZoomInAsync`/`ZoomOutAsync` move within roughly 0.25 to 7680.
+Leave `PixelsPerDay` unset and the chart fits the whole project on first render.
+
+### Rows, Editing and Export
+
+- Rows sort by start date by default (siblings within each parent). Set `SortBy = new()` to keep
+  the order of your task list.
+- `EnableTaskDrag` moves bars in time; it does not reorder rows. Drawing new links is
+  `Dependencies.Editable`.
+- `EnableAddTaskRow` adds an "add task" row that is hidden while more than 50 rows are visible.
+- `EnableExport` shows a toolbar export button in `ExportFormat` (SVG unless set);
+  `ExportChartAsync` takes SVG, PNG or PDF. PNG and PDF are raster images.
+- `EnableProjectBoundary` lines are computed on a full render with the bundled apexgantt 3.15.0,
+  so they do not follow a drag or an edit until the next full render. From apexgantt 3.20.0 they
+  are recomputed whenever tasks change.
+
 ### Custom Tooltips
 
 The tooltip options that take a function in the core take a `JsFunction` here: JavaScript source
@@ -246,7 +325,7 @@ written in C#, compiled once in the browser.
 | --- | --- | --- |
 | `GanttOptions.TooltipTemplate` | `(task, dateFormat) => string` | hovering a task bar or milestone |
 | `DependencyOptions.TooltipTemplate` | `ctx => string` (`fromTask`, `toTask`, `type`, `lag`) | hovering a dependency arrow (needs a non-zero `HitWidth`) |
-| `CalendarOptions.HolidayTooltip` | `ctx => string` (`date`, `label`) | hovering a holiday stripe |
+| `CalendarOptions.HolidayTooltip` | `ctx => string` (`date`, `label`) | hovering a holiday stripe (from apexgantt 3.20.0; earlier versions draw the task rows over the stripes) |
 
 ```csharp
 var options = new GanttOptions
@@ -274,7 +353,94 @@ app put there, and it cannot see your C# variables, so interpolate the values it
 evaluated as code, so never build one from untrusted input.
 
 A `JsFunction` also works as a value in `AdditionalOptions`, for any other function-typed core
-option that has no typed property yet.
+option that has no typed property yet, such as the `before*` hooks:
+
+```csharp
+AdditionalOptions = new Dictionary<string, object>
+{
+    ["beforeTaskUpdate"] = JsFunction.From("({ task, updates }) => !task.locked")
+}
+```
+
+Hooks run synchronously: return `false` to cancel. A returned Promise does not cancel anything.
+Each hook receives one object: `beforeTaskUpdate` gets `{ task, updates }` and `beforeTaskAdd`
+gets `{ input, parentId }`. With the bundled apexgantt 3.15.0, `beforeTaskUpdate` runs for
+`UpdateTaskAsync` and inline edits only; from apexgantt 3.20.0 it runs for every edit path.
+
+## Events
+
+Every core event is an `EventCallback` parameter on the component:
+
+```razor
+<ApexGantt Options="@options" Tasks="@tasks"
+           OnTaskDragged="@OnDragged"
+           OnTaskUpdateSuccess="@OnSaved" />
+```
+
+| Parameter | Args | Raised when |
+| --- | --- | --- |
+| `OnTaskUpdate` | `TaskUpdateEventArgs` | a task edit is applied (see below for which edits) |
+| `OnTaskUpdateSuccess` | `TaskUpdateSuccessEventArgs` | that edit has been stored |
+| `OnTaskUpdateError` | `TaskUpdateErrorEventArgs` | storing an edit failed |
+| `OnTaskValidationError` | `TaskValidationErrorEventArgs` | the edit dialog rejects its input |
+| `OnTaskDragged` | `TaskDraggedEventArgs` | a bar is dragged to new dates |
+| `OnTaskResized` | `TaskResizedEventArgs` | a bar is resized |
+| `OnTaskProgressChanged` | `TaskProgressChangedEventArgs` | the progress handle is dragged |
+| `OnTaskAdded` | `TaskAddedEventArgs` | a task is added (`AddTaskAsync` or the chart's add controls) |
+| `OnTaskDeleted` | `TaskDeletedEventArgs` | a task is deleted |
+| `OnTaskMoved` | `TaskMovedEventArgs` | a task is re-parented (`MoveTaskAsync`, indent or outdent) |
+| `OnDependencyAdded`, `OnDependencyRemoved` | `DependencyChangeEventArgs` | a dependency is added or removed |
+| `OnDependencyArrowUpdate` | `DependencyArrowUpdateEventArgs` | an arrow's geometry is recomputed |
+| `OnSelectionChange` | `SelectionChangeEventArgs` | the selection changes (needs `EnableSelection`) |
+| `OnHistoryChange` | `HistoryChangeEventArgs` | the undo/redo history changes |
+| `OnSortChange`, `OnFilterChange`, `OnGroupChange` | `SortChangeEventArgs`, `FilterChangeEventArgs`, `GroupChangeEventArgs` | sorting, filtering or grouping changes |
+| `OnColumnResize`, `OnColumnReorder` | `ColumnResizeEventArgs`, `ColumnReorderEventArgs` | a task-list column is resized or reordered |
+
+Dates in event args are strings in the chart's `InputDateFormat` (see Dates above).
+
+**Which edits raise `OnTaskUpdate` and `OnTaskUpdateSuccess`** depends on the core version:
+
+- With the bundled apexgantt 3.15.0 (and up to 3.19) they fire only for edits made in the edit
+  dialog or inline in the task list. Dragging, resizing and progress dragging raise
+  `OnTaskDragged`, `OnTaskResized` and `OnTaskProgressChanged` instead, and `UpdateTaskAsync`
+  raises nothing.
+- From apexgantt 3.20.0 they fire once per committed edit on every path (drag, resize, progress,
+  dialog, inline, keyboard and `UpdateTaskAsync`), but not for undo or redo. The core also sends a
+  `source` field naming the path, which the event args do not carry yet. An app that saves on both
+  `OnTaskDragged` and `OnTaskUpdateSuccess` then saves a drag twice.
+
+## Methods
+
+Take a reference with `@ref` and call the methods on it:
+
+```razor
+<ApexGantt @ref="gantt" Options="@options" Tasks="@tasks" />
+
+@code {
+    private ApexGantt? gantt;
+
+    private Task Locate(string id) => gantt!.ScrollToTaskAsync(id);
+}
+```
+
+| Method | Notes |
+| --- | --- |
+| `UpdateAsync()` | Re-applies `Options` and sends `Tasks` as the chart's data, replacing it: edits made in the chart that you have not copied into your task list are discarded. From apexgantt 3.20.0 this also clears the undo history. |
+| `AddTaskAsync(task)` | Raises `OnTaskAdded`. |
+| `UpdateTaskAsync(id, updates)` | Sends only the non-null fields of `updates`. Raises `OnTaskUpdate` and `OnTaskUpdateSuccess` from apexgantt 3.20.0 only. |
+| `DeleteTaskAsync(id)` | Throws a `JSException` for a task that has children (no cascade option is passed) or an unknown id. |
+| `MoveTaskAsync(id, newParentId)` | Re-parents a task; `null` moves it to the root. |
+| `AddDependencyAsync(fromId, toId, type, lag)` | `false` when a `beforeDependencyChange` hook vetoes. Throws for an unknown id or a link that already exists; cycles are not checked. |
+| `RemoveDependencyAsync(fromId, toId)` | `false` when a `beforeDependencyChange` hook vetoes. Throws when there is no such link. |
+| `UndoAsync()`, `RedoAsync()`, `CanUndoAsync()`, `CanRedoAsync()`, `ClearHistoryAsync()` | Undo/redo history. |
+| `SortAsync(criteria)`, `ClearSortAsync()` | `ClearSortAsync` returns rows to the order of your task list. |
+| `GroupByAsync(columnKey)`, `ClearGroupingAsync()` | Grouping. |
+| `SetFilterRulesAsync(rules)`, `ClearFilterAsync()` | Filtering. |
+| `SetColumnWidthAsync`, `ResetColumnWidthsAsync`, `SetColumnOrderAsync`, `GetColumnOrderAsync` | Task-list columns. |
+| `ScrollToTaskAsync(id)` | `false` for an unknown id, and with the bundled apexgantt 3.15.0 also when the bar is already in view. Opens collapsed parents from apexgantt 3.20.0 only. |
+| `GetSelectedTasksAsync()`, `SetSelectedTasksAsync(ids)`, `ClearSelectionAsync()` | Need `EnableSelection = true`; without it they do nothing. |
+| `ZoomInAsync()`, `ZoomOutAsync()` | Step the zoom; see Zoom above. |
+| `ExportChartAsync(format)` | SVG, PNG or PDF (PNG and PDF are raster images). Defaults to `ExportFormat`. |
 
 ## Examples
 
@@ -290,7 +456,8 @@ A simple Gantt chart with three tasks:
     {
         Width = "100%",
         Height = "400px",
-        PixelsPerDay = 40
+        PixelsPerDay = 40,
+        InputDateFormat = "YYYY-MM-DD"
     };
 
     private List<GanttTask> basicTasks = new()
@@ -318,6 +485,8 @@ Enable all interactive features and show task dependencies:
         Width = "100%",
         Height = "600px",
         PixelsPerDay = 40,
+        InputDateFormat = "YYYY-MM-DD",
+        EnableSelection = true,
         EnableTaskCRUDToolbar = true,
         EnableTaskDrag = true,
         EnableTaskResize = true,
@@ -355,7 +524,8 @@ Apply custom colors and styling:
     {
         Width = "100%",
         Height = "500px",
-        PixelsPerDay = 4,
+        PixelsPerDay = 4,               // about month level
+        InputDateFormat = "YYYY-MM-DD",
         BarBackgroundColor = "#1e293b",
         BarTextColor = "#f8fafc",
         BarBorderRadius = "8px",
@@ -412,12 +582,13 @@ Blazor-ApexGantt/
 │   │   ├── Interop/
 │   │   │   └── ApexGanttInterop.cs    # JavaScript interop
 │   │   └── wwwroot/js/
-│   │       ├── apexgantt.min.js       # ApexGantt library
+│   │       ├── apexgantt.es.min.js    # ApexGantt core (ES module, imported by the bridge)
+│   │       ├── apexgantt.min.js       # ApexGantt core (UMD build)
 │   │       └── blazor-apexgantt.js    # Bridge script
 │   │
 │   └── Blazor-ApexGantt.Sample/       # Demo application
 │       └── Pages/                      # Demo pages
-├── LICENSE
+├── LICENSE.md
 ├── README.md
 └── Blazor-ApexGantt.sln
 ```
@@ -427,7 +598,8 @@ Blazor-ApexGantt/
 - .NET 9.0 SDK or later
 - Blazor WebAssembly or Blazor Server application
 - Modern web browser with JavaScript enabled
-- ApexGantt JavaScript library (loaded via CDN or local)
+- An ApexGantt license key (Premium plan or above) to remove the trial watermark; the ApexGantt
+  core itself is bundled, so no separate script or CDN reference is needed
 
 ## Browser Support
 
@@ -450,7 +622,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-See the [LICENSE](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE) file for details.
+See the [LICENSE.md](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICENSE.md) file for details.
 
 ## Acknowledgments
 
@@ -465,11 +637,9 @@ See the [LICENSE](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LICEN
 
 ## Roadmap
 
-- [ ] Additional event callbacks (OnTaskClick, OnTaskDrag, etc.)
+- [ ] apexgantt 3.20 API: task getters, expand and collapse, scroll and silent-update options, and
+      the `source` of update events
 - [ ] Real-time data updates
-- [ ] Advanced filtering and grouping
-- [ ] Export to PDF/PNG functionality
-- [ ] Localization support
 - [ ] Performance optimizations for large datasets
 
 ---

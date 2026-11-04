@@ -28,8 +28,11 @@ public class GanttOptions
     public object? Width { get; set; }
 
     /// <summary>
-    /// Zoom level in pixels per day. Replaces the old view-mode presets: roughly 40 = week,
-    /// 12 = month, 4 = quarter. When omitted, the chart auto-fits the data span.
+    /// Zoom level in pixels per day. Zoom is continuous (there are no view modes) and the
+    /// timeline header tiers follow it automatically. Reference points: about 0.5 shows years,
+    /// 1.6 quarters, 4.9 months, 25.7 weeks and 80 days. The toolbar zoom buttons and
+    /// <c>ZoomInAsync</c>/<c>ZoomOutAsync</c> move within roughly 0.25 to 7680. When omitted, the
+    /// chart fits the whole data span on first render.
     /// </summary>
     public double? PixelsPerDay { get; set; }
 
@@ -39,7 +42,16 @@ public class GanttOptions
     /// <summary>Width of the task-list panel (px).</summary>
     public int? TasksContainerWidth { get; set; }
 
-    /// <summary>Date format used to parse task date strings (dayjs tokens, default "YYYY-MM-DD").</summary>
+    /// <summary>
+    /// Format of task date strings, in dayjs tokens. The core default is "MM-DD-YYYY". Strings are
+    /// parsed strictly against this format first, then with a lenient fallback, so ISO strings
+    /// still draw under the default. The wrapper writes <see cref="System.DateTime"/> and
+    /// <see cref="System.DateOnly"/> task dates as yyyy-MM-dd and sets no format of its own, so
+    /// when you pass DateTime values set this to "YYYY-MM-DD": the edit dialog reads dates with
+    /// this format only, with no ISO fallback (with a mismatched format its date fields come up
+    /// empty and an untouched save can store "Invalid Date"), and every date the chart writes back
+    /// after a drag, resize or edit, including the dates in event args, uses this format.
+    /// </summary>
     public string? InputDateFormat { get; set; }
 
     /// <summary>Snap unit for drag/resize commits (day, hour, minute).</summary>
@@ -145,19 +157,31 @@ public class GanttOptions
     /// <summary>Border color for annotations.</summary>
     public string? AnnotationBorderColor { get; set; }
 
-    /// <summary>Dash pattern for annotation borders.</summary>
+    /// <summary>
+    /// Dash pattern for annotation borders. Read from apexgantt 3.20.0; the bundled 3.15.0 (and
+    /// every version up to 3.19) ignores it.
+    /// </summary>
     public List<double>? AnnotationBorderDashArray { get; set; }
 
     /// <summary>Border width for annotations.</summary>
     public int? AnnotationBorderWidth { get; set; }
 
-    /// <summary>Default orientation for annotations.</summary>
+    /// <summary>
+    /// Default orientation for annotations, the fallback for an annotation label's own
+    /// orientation. Read from apexgantt 3.20.0; the bundled 3.15.0 (and every version up to 3.19)
+    /// ignores it.
+    /// </summary>
     public Orientation? AnnotationOrientation { get; set; }
 
     /// <summary>Annotation lines/regions to draw on the timeline (plain objects matching the core Annotation shape).</summary>
     public List<object>? Annotations { get; set; }
 
-    /// <summary>Draw vertical lines at the project's earliest start and latest end.</summary>
+    /// <summary>
+    /// Draw vertical lines at the project's earliest start and latest end. With the bundled
+    /// apexgantt 3.15.0 (and up to 3.19) the lines are computed on a full render only, so they do
+    /// not follow a drag or an edit until the chart next renders in full. From apexgantt 3.20.0
+    /// they are recomputed whenever tasks change.
+    /// </summary>
     public bool? EnableProjectBoundary { get; set; }
 
     /// <summary>Color of the project-boundary lines.</summary>
@@ -186,7 +210,10 @@ public class GanttOptions
     /// <summary>Task-list column configuration.</summary>
     public List<ColumnListItem>? ColumnConfig { get; set; }
 
-    /// <summary>Initial sort criteria.</summary>
+    /// <summary>
+    /// Initial sort criteria. When omitted, rows sort by start date (ascending, siblings within
+    /// each parent). Pass an empty list to keep the order of your task list.
+    /// </summary>
     public List<SortCriterion>? SortBy { get; set; }
 
     /// <summary>Initial grouping column key.</summary>
@@ -215,28 +242,46 @@ public class GanttOptions
     /// <summary>Highlight the critical path.</summary>
     public bool? EnableCriticalPath { get; set; }
 
-    /// <summary>Roll up progress/dates from children to summary tasks.</summary>
+    /// <summary>
+    /// Draw thin rollup markers under each summary bar at the date ranges of its leaf
+    /// descendants, visible even while the parent is collapsed.
+    /// </summary>
     public bool? EnableRollups { get; set; }
 
-    /// <summary>Enable inline editing of task-list cells.</summary>
+    /// <summary>
+    /// Enable inline editing of task-list cells (double-click a cell). Turned on by
+    /// <see cref="EnableTaskEdit"/> unless set to false.
+    /// </summary>
     public bool? EnableInlineEdit { get; set; }
 
-    /// <summary>Enable row selection.</summary>
+    /// <summary>
+    /// Enable row selection. The selection methods and the toolbar Delete button do nothing
+    /// without it.
+    /// </summary>
     public bool? EnableSelection { get; set; }
 
-    /// <summary>Enable the export feature.</summary>
+    /// <summary>Show the export button in the toolbar (on by default).</summary>
     public bool? EnableExport { get; set; }
 
-    /// <summary>Default export format.</summary>
+    /// <summary>
+    /// Format produced by the toolbar export button: SVG (the default), PNG or PDF. PNG and PDF
+    /// are raster images.
+    /// </summary>
     public GanttExportFormat? ExportFormat { get; set; }
 
-    /// <summary>Enable resizing of the chart/panel.</summary>
+    /// <summary>Allow the task-list panel to be resized by dragging the divider.</summary>
     public bool? EnableResize { get; set; }
 
-    /// <summary>Enable dragging task bars along the timeline.</summary>
+    /// <summary>
+    /// Enable dragging task bars along the timeline to reschedule them. Dragging moves a bar in
+    /// time; it does not reorder rows.
+    /// </summary>
     public bool? EnableTaskDrag { get; set; }
 
-    /// <summary>Enable editing task fields.</summary>
+    /// <summary>
+    /// Double-clicking a task bar opens the edit dialog. Also turns on inline cell editing unless
+    /// <see cref="EnableInlineEdit"/> is false.
+    /// </summary>
     public bool? EnableTaskEdit { get; set; }
 
     /// <summary>Enable resizing task bars.</summary>
@@ -248,13 +293,20 @@ public class GanttOptions
     /// <summary>Enable keyboard shortcuts for task editing.</summary>
     public bool? EnableTaskEditingShortcuts { get; set; }
 
-    /// <summary>Show the built-in task CRUD toolbar.</summary>
+    /// <summary>
+    /// Show built-in Add and Delete buttons in the toolbar. Delete removes the selected tasks, so
+    /// it needs <see cref="EnableSelection"/>.
+    /// </summary>
     public bool? EnableTaskCRUDToolbar { get; set; }
 
     /// <summary>Enable the right-click context menu.</summary>
     public bool? EnableContextMenu { get; set; }
 
-    /// <summary>Show an "add task" row at the bottom of the task list.</summary>
+    /// <summary>
+    /// Show an "add task" row at the bottom of the task list. The row is hidden while more than
+    /// 50 rows are visible (row virtualization is then active); use the toolbar or context menu
+    /// to add tasks instead.
+    /// </summary>
     public bool? EnableAddTaskRow { get; set; }
 
     /// <summary>Enable drawing a new task by dragging on empty timeline space.</summary>

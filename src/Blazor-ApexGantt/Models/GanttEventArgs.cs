@@ -54,7 +54,16 @@ public class SortCriterionInfo
     public string Direction { get; set; } = string.Empty;
 }
 
-/// <summary>Fired when a task update is initiated.</summary>
+/// <summary>
+/// Fired as a task edit is applied; <see cref="TaskUpdateSuccessEventArgs"/> follows once it is
+/// stored. With the bundled apexgantt 3.15.0 (and up to 3.19) it fires only for edits made in the
+/// edit dialog or inline in the task list: dragging, resizing and progress dragging raise
+/// OnTaskDragged, OnTaskResized and OnTaskProgressChanged instead, and <c>UpdateTaskAsync</c>
+/// raises nothing. From apexgantt 3.20.0 it fires once per committed edit on every path (drag,
+/// resize, progress, dialog, inline, keyboard and <c>UpdateTaskAsync</c>), but not for undo or
+/// redo; the core then also sends a <c>source</c> field naming the path, which these args do not
+/// carry yet.
+/// </summary>
 public class TaskUpdateEventArgs
 {
     public string TaskId { get; set; } = string.Empty;
@@ -64,7 +73,12 @@ public class TaskUpdateEventArgs
     public long Timestamp { get; set; }
 }
 
-/// <summary>Fired when a task update succeeds.</summary>
+/// <summary>
+/// Fired after a task edit is stored. Fires on the same paths as
+/// <see cref="TaskUpdateEventArgs"/>, which describes how they differ before and from apexgantt
+/// 3.20.0. From 3.20.0 a drag raises both this and OnTaskDragged, so an app that saves on both
+/// saves the drag twice.
+/// </summary>
 public class TaskUpdateSuccessEventArgs
 {
     public string TaskId { get; set; } = string.Empty;
@@ -80,7 +94,7 @@ public class TaskUpdateErrorEventArgs
     public long Timestamp { get; set; }
 }
 
-/// <summary>Fired when task validation fails.</summary>
+/// <summary>Fired when the edit dialog rejects its input.</summary>
 public class TaskValidationErrorEventArgs
 {
     public string TaskId { get; set; } = string.Empty;
@@ -88,7 +102,10 @@ public class TaskValidationErrorEventArgs
     public long Timestamp { get; set; }
 }
 
-/// <summary>Fired when a task bar is dragged along the timeline.</summary>
+/// <summary>
+/// Fired when a task bar is dragged along the timeline to new dates. The date strings use the
+/// chart's input date format.
+/// </summary>
 public class TaskDraggedEventArgs
 {
     public string TaskId { get; set; } = string.Empty;
@@ -117,7 +134,10 @@ public class TaskResizedEventArgs
     public long Timestamp { get; set; }
 }
 
-/// <summary>Fired after a task is inserted via AddTask.</summary>
+/// <summary>
+/// Fired after a task is added, by <c>AddTaskAsync</c> or by the chart's own add controls
+/// (toolbar, add-task row, context menu, drawing a task).
+/// </summary>
 public class TaskAddedEventArgs
 {
     public string TaskId { get; set; } = string.Empty;
@@ -135,7 +155,10 @@ public class TaskDeletedEventArgs
     public long Timestamp { get; set; }
 }
 
-/// <summary>Fired when a task is re-parented via MoveTask.</summary>
+/// <summary>
+/// Fired when a task is re-parented, by <c>MoveTaskAsync</c> or by indenting or outdenting in the
+/// chart (keyboard shortcuts or context menu).
+/// </summary>
 public class TaskMovedEventArgs
 {
     public string TaskId { get; set; } = string.Empty;

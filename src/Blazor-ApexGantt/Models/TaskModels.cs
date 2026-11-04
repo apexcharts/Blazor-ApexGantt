@@ -3,6 +3,8 @@ namespace Blazor_ApexGantt.Models;
 /// <summary>
 /// A typed dependency on another task, with optional lag/lead and relationship type.
 /// A task's <see cref="GanttTask.Dependency"/> can be a plain id string or one of these.
+/// Dependencies are drawn as arrows and feed the critical path; they never move tasks (there
+/// is no automatic rescheduling).
 /// </summary>
 public class TaskDependency
 {
@@ -12,10 +14,17 @@ public class TaskDependency
     /// <summary>Relationship type. Defaults to Finish-to-Start when omitted.</summary>
     public DependencyType? Type { get; set; }
 
-    /// <summary>Lag (positive) or lead (negative) applied to the relationship.</summary>
+    /// <summary>
+    /// Lag (positive) or lead (negative), in days. Counts working days when a working calendar is
+    /// active and calendar days otherwise. Used only by the critical path and the arrow tooltip.
+    /// </summary>
     public int? Lag { get; set; }
 
-    /// <summary>Unit for <see cref="Lag"/>: working days (calendar-aware) or raw calendar days.</summary>
+    /// <summary>
+    /// Has no effect: the core has never read this field, and apexgantt 3.20.0 deprecates it.
+    /// <see cref="Lag"/> counts working days when a working calendar is active and calendar days
+    /// otherwise, whatever this is set to.
+    /// </summary>
     public LagUnit? LagUnit { get; set; }
 }
 

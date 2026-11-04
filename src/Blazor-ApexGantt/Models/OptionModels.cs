@@ -35,10 +35,19 @@ public class BaselineOptions
     public int? StripeAngle { get; set; }
 }
 
-/// <summary>Working-calendar options: working days, holidays, and non-working-day snapping.</summary>
+/// <summary>
+/// Working-calendar options: working days, holidays, and non-working-day snapping. With the
+/// bundled apexgantt 3.15.0 (and up to 3.19) the working calendar is active only when
+/// <see cref="WorkingWeekdays"/> or a non-empty <see cref="Holidays"/> list is set; from
+/// apexgantt 3.20.0 any <see cref="CalendarOptions"/> object turns it on. Without an active
+/// calendar every day is a working day.
+/// </summary>
 public class CalendarOptions
 {
-    /// <summary>Weekdays that count as working days (0 = Sunday .. 6 = Saturday).</summary>
+    /// <summary>
+    /// Weekdays that count as working days (0 = Sunday .. 6 = Saturday). Defaults to Monday to
+    /// Friday when the calendar is active.
+    /// </summary>
     public List<int>? WorkingWeekdays { get; set; }
 
     /// <summary>
@@ -47,13 +56,18 @@ public class CalendarOptions
     /// </summary>
     public List<object>? Holidays { get; set; }
 
-    /// <summary>Render hatched/tinted bands over non-working columns.</summary>
+    /// <summary>
+    /// Render tinted bands over non-working columns (on by default). Before apexgantt 3.20.0 the
+    /// task rows are drawn over the bands, so they are hidden wherever a row covers them; from
+    /// 3.20.0 they draw above the row backgrounds and under the bars.
+    /// </summary>
     public bool? ShowNonWorkingStripes { get; set; }
 
     /// <summary>
     /// Tooltip for a holiday stripe. A JavaScript function <c>ctx =&gt; string</c> returning
     /// HTML, where <c>ctx.date</c> is the holiday's Date and <c>ctx.label</c> is the label from
-    /// the matching <see cref="Holidays"/> entry (undefined for a plain date).
+    /// the matching <see cref="Holidays"/> entry (undefined for a plain date). It shows on hover
+    /// from apexgantt 3.20.0; before that the task rows cover the stripes it is attached to.
     /// </summary>
     public JsFunction? HolidayTooltip { get; set; }
 
