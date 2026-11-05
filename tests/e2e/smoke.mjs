@@ -128,7 +128,10 @@ async function checkApiRoundTrip() {
   await page.waitForSelector(".gantt-container .bar-timeline", { timeout: 25000 });
   const status = () => page.locator("#api-status").innerText();
   const entries = () => page.locator(".event-entry").count();
-  const rows = () => page.locator(".gantt-container .timeline-data-row").count();
+  // Task rows only: the chart pads the space under them with .timeline-empty-row fillers, a
+  // frame after each render, so counting those too reads the same total before and after a
+  // collapse once the fillers land.
+  const rows = () => page.locator(".gantt-container .timeline-data-row:not(.timeline-empty-row)").count();
   const expectStatus = async (label, re) => {
     const ok = await poll(async () => re.test(await status()));
     if (!ok) failures.push(`[${route}] ${label}: status was "${await status()}", expected ${re}`);
