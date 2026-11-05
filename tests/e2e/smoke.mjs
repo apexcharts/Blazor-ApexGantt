@@ -104,10 +104,77 @@ async function checkCustomTooltip() {
 
 await checkCustomTooltip();
 
+// Waits until fn() returns a truthy value (the state unique to the expected outcome), so a slow
+// runner never turns into a false failure and a stale state never passes.
+async function poll(fn, timeout = 10000) {
+  const end = Date.now() + timeout;
+  let last;
+  while (Date.now() < end) {
+    last = await fn();
+    if (last) return last;
+    await page.waitForTimeout(100);
+  }
+  return last;
+}
+
+// The apexgantt 3.20 methods cross the interop both ways: arguments out, copies of tasks and
+// links back into C# models. The events page drives each through a button and prints the
+// result, so a missing bridge export, a mis-shaped options object or a payload that does not
+// deserialize shows up here.
+async function checkApiRoundTrip() {
+  const route = "events-demo";
+  pageErrors = [];
+  await page.goto(BASE + "/" + route, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".gantt-container .bar-timeline", { timeout: 25000 });
+  const status = () => page.locator("#api-status").innerText();
+  const entries = () => page.locator(".event-entry").count();
+  const rows = () => page.locator(".gantt-container .timeline-data-row").count();
+  const expectStatus = async (label, re) => {
+    const ok = await poll(async () => re.test(await status()));
+    if (!ok) failures.push(`[${route}] ${label}: status was "${await status()}", expected ${re}`);
+  };
+
+  await page.click("#btn-read-data");
+  await expectStatus("GetTasksAsync/GetDependenciesAsync/GetTaskAsync", /^5 tasks, 3 links; Testing is at level 2, 30%$/);
+
+  // UpdateTaskAsync raises OnTaskUpdate and OnTaskUpdateSuccess with source "api"
+  await page.click("#btn-update-api");
+  await expectStatus("UpdateTaskAsync", /^Testing set to 10%$/);
+  const apiLogged = await poll(async () => (await page.locator(".event-entry", { hasText: "source: api" }).count()) === 2);
+  if (!apiLogged) failures.push(`[${route}] UpdateTaskAsync did not log two events with source: api`);
+
+  // silent: the update lands, no event is raised
+  const before = await entries();
+  await page.click("#btn-update-silent");
+  await expectStatus("UpdateTaskAsync(silent)", /^Testing set to 20% silently$/);
+  await page.waitForTimeout(500);
+  if ((await entries()) !== before) failures.push(`[${route}] a silent UpdateTaskAsync raised events`);
+
+  // an UpdateAsync with an unchanged task list keeps the chart's edits
+  await page.click("#btn-dark");
+  await expectStatus("UpdateAsync keeps edits", /^theme Dark; Testing still at 20%$/);
+
+  // collapse hides the four children; ScrollToTaskAsync opens the parent again
+  const allRows = await rows();
+  await page.click("#btn-collapse");
+  await expectStatus("CollapseTaskAsync", /^collapsed: True$/);
+  const collapsed = await poll(async () => (await rows()) === allRows - 4);
+  if (!collapsed) failures.push(`[${route}] CollapseTaskAsync left ${await rows()} rows (expected ${allRows - 4})`);
+  await page.click("#btn-scroll");
+  await expectStatus("ScrollToTaskAsync", /^scrolled: True$/);
+  const expanded = await poll(async () => (await rows()) === allRows);
+  if (!expanded) failures.push(`[${route}] ScrollToTaskAsync did not expand the parent (${await rows()} rows)`);
+
+  if (pageErrors.length) failures.push(`[${route}] console/page errors in the API round trip: ${JSON.stringify(pageErrors)}`);
+  console.log(`[${route}] apiRoundTrip status="${await status()}" rows=${await rows()} errors=${pageErrors.length}`);
+}
+
+await checkApiRoundTrip();
+
 await browser.close();
 
 if (failures.length) {
   console.error("\nE2E SMOKE FAILED:\n" + failures.map((f) => "  - " + f).join("\n"));
   process.exit(1);
 }
-console.log("\nE2E smoke passed: all gantt demo pages rendered with no errors.");
+console.log("\nE2E smoke passed: all gantt demo pages rendered with no errors and the API round trip held.");

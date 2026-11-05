@@ -6,7 +6,7 @@ namespace Blazor_ApexGantt.Models;
 
 /// <summary>
 /// Configuration options for the gantt chart. Mirrors the high-value surface of the core
-/// <c>GanttUserOptions</c> (apexgantt 3.15). Anything not modeled here can be supplied via
+/// <c>GanttUserOptions</c> (apexgantt 3.20). Anything not modeled here can be supplied via
 /// <see cref="AdditionalOptions"/>. Function-typed options (renderers, hooks, formatters) are
 /// written as a <see cref="JsFunction"/>, whether through a typed property such as
 /// <see cref="TooltipTemplate"/> or as a value in <see cref="AdditionalOptions"/>.
@@ -47,10 +47,10 @@ public class GanttOptions
     /// parsed strictly against this format first, then with a lenient fallback, so ISO strings
     /// still draw under the default. The wrapper writes <see cref="System.DateTime"/> and
     /// <see cref="System.DateOnly"/> task dates as yyyy-MM-dd and sets no format of its own, so
-    /// when you pass DateTime values set this to "YYYY-MM-DD": the edit dialog reads dates with
-    /// this format only, with no ISO fallback (with a mismatched format its date fields come up
-    /// empty and an untouched save can store "Invalid Date"), and every date the chart writes back
-    /// after a drag, resize or edit, including the dates in event args, uses this format.
+    /// when you pass DateTime values set this to "YYYY-MM-DD": every date the chart writes back
+    /// after a drag, resize or edit, including the dates in event args and in
+    /// <c>GetTasksAsync</c>, uses this format, so with a mismatched one your data ends up in two
+    /// formats.
     /// </summary>
     public string? InputDateFormat { get; set; }
 
@@ -158,8 +158,7 @@ public class GanttOptions
     public string? AnnotationBorderColor { get; set; }
 
     /// <summary>
-    /// Dash pattern for annotation borders. Read from apexgantt 3.20.0; the bundled 3.15.0 (and
-    /// every version up to 3.19) ignores it.
+    /// Dash pattern for annotation borders. An annotation's own <c>borderDashArray</c> wins.
     /// </summary>
     public List<double>? AnnotationBorderDashArray { get; set; }
 
@@ -168,8 +167,7 @@ public class GanttOptions
 
     /// <summary>
     /// Default orientation for annotations, the fallback for an annotation label's own
-    /// orientation. Read from apexgantt 3.20.0; the bundled 3.15.0 (and every version up to 3.19)
-    /// ignores it.
+    /// orientation.
     /// </summary>
     public Orientation? AnnotationOrientation { get; set; }
 
@@ -177,10 +175,8 @@ public class GanttOptions
     public List<object>? Annotations { get; set; }
 
     /// <summary>
-    /// Draw vertical lines at the project's earliest start and latest end. With the bundled
-    /// apexgantt 3.15.0 (and up to 3.19) the lines are computed on a full render only, so they do
-    /// not follow a drag or an edit until the chart next renders in full. From apexgantt 3.20.0
-    /// they are recomputed whenever tasks change.
+    /// Draw vertical lines at the project's earliest start and latest end. They follow drags,
+    /// resizes, <c>UpdateTaskAsync</c> and undo.
     /// </summary>
     public bool? EnableProjectBoundary { get; set; }
 

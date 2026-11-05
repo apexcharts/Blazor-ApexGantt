@@ -20,13 +20,19 @@ public class GanttTaskInfo
     public string? ParentId { get; set; }
     public string? BarBackgroundColor { get; set; }
     public string? RowBackgroundColor { get; set; }
-    /// <summary>Nesting depth (0 = root).</summary>
+    /// <summary>Color of the label drawn inside this task's bar, when the task sets its own.</summary>
+    public string? BarTextColor { get; set; }
+    /// <summary>Nesting depth, counted from 1: a top-level task is 1, its children 2.</summary>
     public int? Level { get; set; }
     /// <summary>Work-breakdown-structure code (e.g. "1.2.1").</summary>
     public string? Wbs { get; set; }
     public bool? ShowSummaryBar { get; set; }
     public bool? Collapsed { get; set; }
-    /// <summary>Any fields not modeled above (e.g. predecessors, successors, group metadata).</summary>
+    /// <summary>
+    /// Any fields not modeled above, keyed by their camelCase core name: for example
+    /// <c>dependency</c>, <c>baseline</c>, <c>segments</c>, <c>assignees</c>,
+    /// <c>predecessors</c>, <c>successors</c>, group metadata and your own custom fields.
+    /// </summary>
     [System.Text.Json.Serialization.JsonExtensionData]
     public Dictionary<string, JsonElement>? AdditionalData { get; set; }
 }
@@ -46,6 +52,45 @@ public class AffectedChildTask
     public string NewEndTime { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// One dependency link as <c>GetDependenciesAsync</c> returns it: the links the tasks were loaded
+/// with and the ones added with <c>AddDependencyAsync</c> or drawn in the chart, less removed ones.
+/// </summary>
+public class DependencyLinkInfo
+{
+    /// <summary>Id of the predecessor task, where the arrow starts.</summary>
+    public string FromId { get; set; } = string.Empty;
+    /// <summary>Id of the successor task, where the arrow ends.</summary>
+    public string ToId { get; set; } = string.Empty;
+    /// <summary>"FS", "FF", "SF" or "SS".</summary>
+    public string Type { get; set; } = string.Empty;
+    /// <summary>Lag (positive) or lead (negative) in days.</summary>
+    public double Lag { get; set; }
+}
+
+/// <summary>
+/// The edit paths the core names in <see cref="TaskUpdateEventArgs.Source"/> and
+/// <see cref="TaskUpdateSuccessEventArgs.Source"/>. The source is a plain string, so compare it
+/// with these constants; a value added by a later core still arrives intact.
+/// </summary>
+public static class TaskUpdateSource
+{
+    /// <summary><c>UpdateTaskAsync</c> (and the core's <c>splitTask</c>, which calls it).</summary>
+    public const string Api = "api";
+    /// <summary>The edit dialog opened by double-clicking a bar.</summary>
+    public const string Dialog = "dialog";
+    /// <summary>Dragging a bar, including the children moved with a parent.</summary>
+    public const string Drag = "drag";
+    /// <summary>An inline cell edit in the task list.</summary>
+    public const string Inline = "inline";
+    /// <summary>Moving or resizing a focused bar with the arrow keys.</summary>
+    public const string Keyboard = "keyboard";
+    /// <summary>Dragging the progress handle inside a bar.</summary>
+    public const string Progress = "progress";
+    /// <summary>Dragging a bar's resize handle.</summary>
+    public const string Resize = "resize";
+}
+
 /// <summary>A sort criterion as reported by the sortChange event.</summary>
 public class SortCriterionInfo
 {
@@ -55,38 +100,47 @@ public class SortCriterionInfo
 }
 
 /// <summary>
-/// Fired as a task edit is applied; <see cref="TaskUpdateSuccessEventArgs"/> follows once it is
-/// stored. With the bundled apexgantt 3.15.0 (and up to 3.19) it fires only for edits made in the
-/// edit dialog or inline in the task list: dragging, resizing and progress dragging raise
-/// OnTaskDragged, OnTaskResized and OnTaskProgressChanged instead, and <c>UpdateTaskAsync</c>
-/// raises nothing. From apexgantt 3.20.0 it fires once per committed edit on every path (drag,
-/// resize, progress, dialog, inline, keyboard and <c>UpdateTaskAsync</c>), but not for undo or
-/// redo; the core then also sends a <c>source</c> field naming the path, which these args do not
-/// carry yet.
+/// Fired once per committed task edit, just before it is applied, on every edit path: drag,
+/// resize, progress drag, edit dialog, inline edit, keyboard and <c>UpdateTaskAsync</c>.
+/// <see cref="TaskUpdateSuccessEventArgs"/> follows once it is stored. Not raised for undo or
+/// redo, or for <c>UpdateTaskAsync</c> called with <c>silent: true</c>. <see cref="Source"/> names
+/// the path.
 /// </summary>
 public class TaskUpdateEventArgs
 {
     public string TaskId { get; set; } = string.Empty;
     /// <summary>The partial fields being applied.</summary>
     public GanttTaskInfo? Updates { get; set; }
+    /// <summary>The task as it will read once the edit is applied.</summary>
     public GanttTaskInfo? UpdatedTask { get; set; }
+    /// <summary>
+    /// The edit path that produced the update: one of the <see cref="TaskUpdateSource"/>
+    /// constants ("api", "dialog", "drag", "inline", "keyboard", "progress" or "resize").
+    /// </summary>
+    public string? Source { get; set; }
     public long Timestamp { get; set; }
 }
 
 /// <summary>
-/// Fired after a task edit is stored. Fires on the same paths as
-/// <see cref="TaskUpdateEventArgs"/>, which describes how they differ before and from apexgantt
-/// 3.20.0. From 3.20.0 a drag raises both this and OnTaskDragged, so an app that saves on both
-/// saves the drag twice.
+/// Fired after a task edit is stored, on the same paths as <see cref="TaskUpdateEventArgs"/>. A
+/// drag raises both this and OnTaskDragged (a resize OnTaskResized, a progress drag
+/// OnTaskProgressChanged), so an app that saves on both saves the edit twice: save on this one
+/// and use <see cref="Source"/> when the path matters.
 /// </summary>
 public class TaskUpdateSuccessEventArgs
 {
     public string TaskId { get; set; } = string.Empty;
+    /// <summary>The task with the edit applied.</summary>
     public GanttTaskInfo? UpdatedTask { get; set; }
+    /// <summary>
+    /// The edit path that produced the update: one of the <see cref="TaskUpdateSource"/>
+    /// constants ("api", "dialog", "drag", "inline", "keyboard", "progress" or "resize").
+    /// </summary>
+    public string? Source { get; set; }
     public long Timestamp { get; set; }
 }
 
-/// <summary>Fired when a task update fails.</summary>
+/// <summary>Fired when a task update fails, on every edit path.</summary>
 public class TaskUpdateErrorEventArgs
 {
     public string TaskId { get; set; } = string.Empty;

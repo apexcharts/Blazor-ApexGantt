@@ -86,6 +86,7 @@ public enum SnapUnit
 /// it, and apexgantt 3.20.0 deprecates it. Lag counts working days when a working calendar is
 /// active and calendar days otherwise.
 /// </summary>
+[Obsolete("LagUnit has no effect: the core has never read it, and apexgantt 3.20.0 deprecates it. Lag counts working days when a working calendar is active and calendar days otherwise.")]
 public enum LagUnit
 {
     Working,

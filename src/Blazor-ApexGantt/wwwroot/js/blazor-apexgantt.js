@@ -2,7 +2,7 @@
 //
 // Self-contained: imports the vendored apexgantt ESM dist directly, so the host app
 // no longer needs a <script> tag or a CDN reference for the core library.
-import { ApexGantt } from "./apexgantt.es.min.js?ver=3.15.0";
+import { ApexGantt } from "./apexgantt.es.min.js?ver=3.20.0";
 
 // chart instances and their event-listener cleanups, keyed by element id
 const instances = {};
@@ -179,14 +179,37 @@ export function destroy(elementId) {
 export function addTask(elementId, taskJson) {
   chartOf(elementId).addTask(JSON.parse(taskJson));
 }
-export function updateTask(elementId, taskId, updatesJson) {
-  chartOf(elementId).updateTask(taskId, JSON.parse(updatesJson));
+export function updateTask(elementId, taskId, updatesJson, optionsJson) {
+  chartOf(elementId).updateTask(
+    taskId,
+    JSON.parse(updatesJson),
+    optionsJson ? JSON.parse(optionsJson) : undefined
+  );
 }
 export function deleteTask(elementId, taskId) {
   chartOf(elementId).deleteTask(taskId);
 }
 export function moveTask(elementId, taskId, optionsJson) {
   chartOf(elementId).moveTask(taskId, optionsJson ? JSON.parse(optionsJson) : undefined);
+}
+
+// --- Reading the data (copies: changing them never changes the chart) --------
+export function getTask(elementId, taskId) {
+  return chartOf(elementId).getTask(taskId);
+}
+export function getTasks(elementId) {
+  return chartOf(elementId).getTasks();
+}
+export function getDependencies(elementId) {
+  return chartOf(elementId).getDependencies();
+}
+
+// --- Expand / collapse (view state: not recorded in undo history) ------------
+export function expandTask(elementId, taskId) {
+  return chartOf(elementId).expandTask(taskId);
+}
+export function collapseTask(elementId, taskId) {
+  return chartOf(elementId).collapseTask(taskId);
 }
 
 // --- Dependencies ------------------------------------------------------------
@@ -253,8 +276,11 @@ export function getColumnOrder(elementId) {
 }
 
 // --- Selection / navigation / zoom / export ----------------------------------
-export function scrollToTask(elementId, taskId) {
-  return chartOf(elementId).scrollToTask(taskId);
+export function scrollToTask(elementId, taskId, optionsJson) {
+  return chartOf(elementId).scrollToTask(
+    taskId,
+    optionsJson ? JSON.parse(optionsJson) : undefined
+  );
 }
 export function getSelectedTasks(elementId) {
   return chartOf(elementId).getSelectedTasks();

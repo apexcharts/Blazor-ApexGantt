@@ -43,12 +43,9 @@ git clone https://github.com/apexcharts/Blazor-ApexGantt.git
 
 ### 1. No script tag needed
 
-The ApexGantt core library (apexgantt 3.15.0) is bundled with this package and loaded on
+The ApexGantt core library (apexgantt 3.20.0) is bundled with this package and loaded on
 demand as an ES module, so you do not need to add any `<script>` tag or CDN reference. Just
 install the NuGet package and register the services (see License Configuration below).
-
-Notes below that name a later apexgantt version (for example "from apexgantt 3.20.0") describe
-core behavior that arrives when the bundled core is updated to that version.
 
 ### 2. Add Using Directives
 
@@ -159,8 +156,8 @@ builder.Services.AddApexGantt();
 await builder.Build().RunAsync();
 ```
 
-> **Note:** From apexgantt 3.20.0 the core also checks the key's plan: only a Premium or higher
-> key removes the ApexGantt watermark.
+> **Note:** The core also checks the key's plan: only a Premium or higher key removes the
+> ApexGantt watermark.
 
 ## Configuration
 
@@ -227,6 +224,7 @@ var task = new GanttTask
     ParentId = "parent-task-id",       // Optional: For hierarchical tasks
     Dependency = "dependent-task-id",  // Optional: Task id, or a TaskDependency for FS/SS/FF/SF + lag
     BarBackgroundColor = "#3b82f6",    // Optional: Custom bar color
+    BarTextColor = "#ffffff",          // Optional: Color of the label inside this bar
     RowBackgroundColor = "#f8fafc",    // Optional: Custom row color
     AdditionalData = new()             // Optional: extra fields, readable from a tooltip template
     {
@@ -240,14 +238,10 @@ var task = new GanttTask
 `StartTime` and `EndTime` take a `DateTime`, a `DateOnly` or a string. The wrapper writes
 `DateTime` and `DateOnly` values as `yyyy-MM-dd` and sets no date format of its own, while the
 core's default `InputDateFormat` is `MM-DD-YYYY`. Bars still draw under that default, because the
-core falls back to a lenient parse for ISO dates, but two things go wrong:
-
-- The edit dialog reads dates with `InputDateFormat` only, with no ISO fallback, so its date fields
-  come up empty and saving it untouched can store "Invalid Date".
-- Every date the chart writes back after a drag, resize or edit, including the dates in event
-  args, uses `InputDateFormat`, so the chart's data ends up in two formats.
-
-So when you pass `DateTime` or `DateOnly` values, set the format to match:
+core falls back to a lenient parse for ISO dates, but every date the chart writes back after a
+drag, resize or edit, including the dates in event args and in `GetTasksAsync()`, uses
+`InputDateFormat`, so the chart's data ends up in two formats. So when you pass `DateTime` or
+`DateOnly` values, set the format to match:
 
 ```csharp
 var options = new GanttOptions { InputDateFormat = "YYYY-MM-DD" };
@@ -259,11 +253,10 @@ the time and set a matching format, such as `"YYYY-MM-DD HH:mm"`.
 ### Milestones
 
 Set `Type = TaskType.Milestone` and the task renders as a diamond on its `StartTime`; it needs no
-`EndTime`. This is the clearest form and works on every apexgantt version. The bundled apexgantt
-3.15.0 requires it: a task with a `StartTime`, no `EndTime` and no `Type` makes the core throw
-"Task must have an id, start, and end date", and the chart does not render. From apexgantt 3.20.0
-such a task is drawn as a milestone, while an explicit `Type = TaskType.Task` with no `EndTime`
-still throws. `MilestoneColor` on `GanttOptions` sets the diamond color.
+`EndTime`. This is the clearest form. A childless task with a `StartTime`, no `EndTime` and no
+`Type` is drawn as a milestone too (with children it is a summary over them), while an explicit
+`Type = TaskType.Task` with no `EndTime` makes the core throw. `MilestoneColor` on `GanttOptions`
+sets the diamond color.
 
 ```csharp
 new GanttTask
@@ -280,8 +273,10 @@ new GanttTask
 
 Any task with children (tasks whose `ParentId` points at it) draws a summary bar spanning its
 children's earliest start and latest end; you do not need to set `ShowSummaryBar`. A parent may
-omit both dates. If it has dates, the summary bar does not use them, and nothing is logged. Set
-`ShowSummaryBar = false`, and give the parent both dates, to draw its own dates as a normal bar.
+omit both dates, as long as a dated task sits somewhere under it (any other row with no start date
+is skipped with a warning). If it has dates, the summary bar does not use them, and nothing is
+logged. Set `ShowSummaryBar = false`, and give the parent both dates, to draw its own dates as a
+normal bar.
 
 ### Dependencies
 
@@ -289,12 +284,11 @@ omit both dates. If it has dates, the summary bar does not use them, and nothing
 SS, FF or SF) and a `Lag` in days (negative for a lead). Lag counts working days when a working
 calendar is active and calendar days otherwise. Dependencies are drawn as arrows and feed the
 critical path and the arrow tooltip; they never move tasks, so dragging a predecessor does not
-reschedule its successors. `TaskDependency.LagUnit` has no effect: the core has never read it,
-and apexgantt 3.20.0 deprecates it.
+reschedule its successors. `TaskDependency.LagUnit` is marked `[Obsolete]`: it has no effect, the
+core has never read it, and apexgantt 3.20.0 deprecates it.
 
-With the bundled apexgantt 3.15.0 the working calendar is active only when
-`CalendarOptions.WorkingWeekdays` or a non-empty `Holidays` list is set. From apexgantt 3.20.0 any
-`Calendar` object turns it on, with a Monday to Friday week unless you set `WorkingWeekdays`.
+Any `Calendar` object turns the working calendar on, even an empty one, with a Monday to Friday
+week unless you set `WorkingWeekdays`. Without a `Calendar` every day is a working day.
 
 ### Zoom
 
@@ -312,9 +306,9 @@ Leave `PixelsPerDay` unset and the chart fits the whole project on first render.
 - `EnableAddTaskRow` adds an "add task" row that is hidden while more than 50 rows are visible.
 - `EnableExport` shows a toolbar export button in `ExportFormat` (SVG unless set);
   `ExportChartAsync` takes SVG, PNG or PDF. PNG and PDF are raster images.
-- `EnableProjectBoundary` lines are computed on a full render with the bundled apexgantt 3.15.0,
-  so they do not follow a drag or an edit until the next full render. From apexgantt 3.20.0 they
-  are recomputed whenever tasks change.
+- `EnableProjectBoundary` lines follow drags, resizes, `UpdateTaskAsync` and undo.
+- A focused bar moves one snap unit with the left and right arrow keys (`EnableTaskDrag`), and
+  Shift with an arrow resizes its end (`EnableTaskResize`, not milestones).
 
 ### Custom Tooltips
 
@@ -323,9 +317,9 @@ written in C#, compiled once in the browser.
 
 | Option | Signature | Shown on |
 | --- | --- | --- |
-| `GanttOptions.TooltipTemplate` | `(task, dateFormat) => string` | hovering a task bar or milestone |
+| `GanttOptions.TooltipTemplate` | `(task, dateFormat, context) => string` (`context.durationText` is the Duration cell's text) | hovering a task bar or milestone |
 | `DependencyOptions.TooltipTemplate` | `ctx => string` (`fromTask`, `toTask`, `type`, `lag`) | hovering a dependency arrow (needs a non-zero `HitWidth`) |
-| `CalendarOptions.HolidayTooltip` | `ctx => string` (`date`, `label`) | hovering a holiday stripe (from apexgantt 3.20.0; earlier versions draw the task rows over the stripes) |
+| `CalendarOptions.HolidayTooltip` | `ctx => string` (`date`, `label`) | hovering a holiday stripe |
 
 ```csharp
 var options = new GanttOptions
@@ -364,8 +358,8 @@ AdditionalOptions = new Dictionary<string, object>
 
 Hooks run synchronously: return `false` to cancel. A returned Promise does not cancel anything.
 Each hook receives one object: `beforeTaskUpdate` gets `{ task, updates }` and `beforeTaskAdd`
-gets `{ input, parentId }`. With the bundled apexgantt 3.15.0, `beforeTaskUpdate` runs for
-`UpdateTaskAsync` and inline edits only; from apexgantt 3.20.0 it runs for every edit path.
+gets `{ input, parentId }`. `beforeTaskUpdate` runs for every edit path: drag, resize, progress
+drag, the edit dialog, inline edits, the keyboard and `UpdateTaskAsync`.
 
 ## Events
 
@@ -398,16 +392,23 @@ Every core event is an `EventCallback` parameter on the component:
 
 Dates in event args are strings in the chart's `InputDateFormat` (see Dates above).
 
-**Which edits raise `OnTaskUpdate` and `OnTaskUpdateSuccess`** depends on the core version:
+`OnTaskUpdate` and `OnTaskUpdateSuccess` fire once per committed edit on every path, but not for
+undo or redo, or for `UpdateTaskAsync(id, updates, silent: true)`. Their `Source` names the path,
+one of the `TaskUpdateSource` constants: `Api` (`UpdateTaskAsync`), `Dialog`, `Drag`, `Inline`,
+`Keyboard`, `Progress` or `Resize`. `Source` is a string, so a path added by a later core still
+arrives.
 
-- With the bundled apexgantt 3.15.0 (and up to 3.19) they fire only for edits made in the edit
-  dialog or inline in the task list. Dragging, resizing and progress dragging raise
-  `OnTaskDragged`, `OnTaskResized` and `OnTaskProgressChanged` instead, and `UpdateTaskAsync`
-  raises nothing.
-- From apexgantt 3.20.0 they fire once per committed edit on every path (drag, resize, progress,
-  dialog, inline, keyboard and `UpdateTaskAsync`), but not for undo or redo. The core also sends a
-  `source` field naming the path, which the event args do not carry yet. An app that saves on both
-  `OnTaskDragged` and `OnTaskUpdateSuccess` then saves a drag twice.
+```csharp
+private Task OnSaved(TaskUpdateSuccessEventArgs e) =>
+    e.Source == TaskUpdateSource.Api
+        ? Task.CompletedTask              // our own UpdateTaskAsync call: already saved
+        : api.SaveTaskAsync(e.UpdatedTask!);
+```
+
+A drag also raises `OnTaskDragged` (a resize `OnTaskResized`, a progress drag
+`OnTaskProgressChanged`), so an app that saves on both saves the edit twice: save in
+`OnTaskUpdateSuccess` and read `Source` when the path matters. Keyboard moves and resizes raise
+only the update events.
 
 ## Methods
 
@@ -425,22 +426,60 @@ Take a reference with `@ref` and call the methods on it:
 
 | Method | Notes |
 | --- | --- |
-| `UpdateAsync()` | Re-applies `Options` and sends `Tasks` as the chart's data, replacing it: edits made in the chart that you have not copied into your task list are discarded. From apexgantt 3.20.0 this also clears the undo history. |
+| `UpdateAsync()` | Re-applies `Options`, and sends `Tasks` only when the task list (or `Parsing`) changed since it was last sent. See Updating the chart below. |
+| `UpdateOptionsAsync()` | Re-applies `Options` and never sends the tasks: the chart keeps its data, edits included, and its undo history. |
+| `UpdateAsync(replaceTasks)` | `true` always sends the tasks, so the chart reloads your list and drops its own edits and its undo history; `false` is `UpdateOptionsAsync()`. |
+| `GetTaskAsync(id)` | A copy of the task as it is now, edits included, as a `GanttTaskInfo`; `null` for an unknown id. |
+| `GetTasksAsync()` | Copies of every task in tree order (parents before children), collapsed and filtered-out ones included. |
+| `GetDependenciesAsync()` | Every link as it is now, as `DependencyLinkInfo` (`FromId`, `ToId`, `Type`, `Lag`): loaded, added or drawn, less removed ones. |
 | `AddTaskAsync(task)` | Raises `OnTaskAdded`. |
-| `UpdateTaskAsync(id, updates)` | Sends only the non-null fields of `updates`. Raises `OnTaskUpdate` and `OnTaskUpdateSuccess` from apexgantt 3.20.0 only. |
+| `UpdateTaskAsync(id, updates)` | Sends only the non-null fields of `updates`. Runs `beforeTaskUpdate`, is recorded for undo, and raises `OnTaskUpdate` and `OnTaskUpdateSuccess` with `Source` "api". |
+| `UpdateTaskAsync(id, updates, silent)` | With `silent: true` the two update events are not raised: for a rollback or a server echo, so your save handler does not send the change back. Still checked by `beforeTaskUpdate` and recorded for undo. |
 | `DeleteTaskAsync(id)` | Throws a `JSException` for a task that has children (no cascade option is passed) or an unknown id. |
 | `MoveTaskAsync(id, newParentId)` | Re-parents a task; `null` moves it to the root. |
-| `AddDependencyAsync(fromId, toId, type, lag)` | `false` when a `beforeDependencyChange` hook vetoes. Throws for an unknown id or a link that already exists; cycles are not checked. |
+| `ExpandTaskAsync(id)`, `CollapseTaskAsync(id)` | Open or close a parent. View state only, not recorded for undo. `false` for an unknown id or a task with no children. |
+| `AddDependencyAsync(fromId, toId, type, lag)` | `false` when a `beforeDependencyChange` hook vetoes. Throws for an unknown id, a link that already exists, a self-link, a cycle, or (unless `allowSummaryDescendantLinks` is set) a link between a summary task and its descendant. |
 | `RemoveDependencyAsync(fromId, toId)` | `false` when a `beforeDependencyChange` hook vetoes. Throws when there is no such link. |
 | `UndoAsync()`, `RedoAsync()`, `CanUndoAsync()`, `CanRedoAsync()`, `ClearHistoryAsync()` | Undo/redo history. |
 | `SortAsync(criteria)`, `ClearSortAsync()` | `ClearSortAsync` returns rows to the order of your task list. |
 | `GroupByAsync(columnKey)`, `ClearGroupingAsync()` | Grouping. |
 | `SetFilterRulesAsync(rules)`, `ClearFilterAsync()` | Filtering. |
 | `SetColumnWidthAsync`, `ResetColumnWidthsAsync`, `SetColumnOrderAsync`, `GetColumnOrderAsync` | Task-list columns. |
-| `ScrollToTaskAsync(id)` | `false` for an unknown id, and with the bundled apexgantt 3.15.0 also when the bar is already in view. Opens collapsed parents from apexgantt 3.20.0 only. |
-| `GetSelectedTasksAsync()`, `SetSelectedTasksAsync(ids)`, `ClearSelectionAsync()` | Need `EnableSelection = true`; without it they do nothing. |
+| `ScrollToTaskAsync(id)` | Opens collapsed parents first, then scrolls the row and bar into view. `true` when the row is shown, `false` for an unknown id or a task the active filter hides. |
+| `ScrollToTaskAsync(id, expand)` | With `expand: false` collapsed parents stay closed, and a task they hide is not scrolled to (`false`). |
+| `GetSelectedTasksAsync()`, `SetSelectedTasksAsync(ids)`, `ClearSelectionAsync()` | Need `EnableSelection = true`; without it they do nothing and the core logs a one-time warning. |
 | `ZoomInAsync()`, `ZoomOutAsync()` | Step the zoom; see Zoom above. |
 | `ExportChartAsync(format)` | SVG, PNG or PDF (PNG and PDF are raster images). Defaults to `ExportFormat`. |
+
+### Updating the chart
+
+The component never re-sends options by itself: change `Options` (or `Tasks`) and call one of
+the update methods. Sending the tasks replaces the chart's data, which drops the edits made in the
+chart (drags, dialog and inline edits) that you have not copied into your list, and clears the undo
+history. So:
+
+- `UpdateOptionsAsync()` for a theme, zoom, column or other option change. The tasks and `Parsing`
+  are left out and the chart keeps everything.
+- `UpdateAsync()` when you may also have changed the task list. The tasks go only when they differ
+  (by value) from what was last sent, so calling it after an option change keeps the chart's edits.
+- `UpdateAsync(replaceTasks: true)` to reload your list as it is, discarding the chart's edits.
+
+```csharp
+options.Theme = ThemeMode.Dark;
+await gantt!.UpdateOptionsAsync();   // edits and undo history survive
+```
+
+### Saving the chart's data
+
+Edits made in the chart are not written back into your `Tasks` list. Read them with
+`GetTasksAsync()` and `GetDependenciesAsync()`, and save both: a task's `dependency` (in
+`GanttTaskInfo.AdditionalData`) holds only the link it was loaded with, so links added with
+`AddDependencyAsync` or drawn in the chart are only in `GetDependenciesAsync()`.
+
+```csharp
+var tasks = await gantt!.GetTasksAsync();        // dates in InputDateFormat, Level counts from 1
+var links = await gantt.GetDependenciesAsync();  // FromId, ToId, Type ("FS", ...), Lag
+```
 
 ## Examples
 
@@ -637,8 +676,6 @@ See the [LICENSE.md](https://github.com/apexcharts/Blazor-ApexGantt/blob/main/LI
 
 ## Roadmap
 
-- [ ] apexgantt 3.20 API: task getters, expand and collapse, scroll and silent-update options, and
-      the `source` of update events
 - [ ] Real-time data updates
 - [ ] Performance optimizations for large datasets
 

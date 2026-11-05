@@ -8,7 +8,7 @@ namespace Blazor_ApexGantt.Interop;
 /// </summary>
 public class ApexGanttInterop : IAsyncDisposable
 {
-    private const string ModulePath = "./_content/Blazor-ApexGantt/js/blazor-apexgantt.js?ver=3.15.0";
+    private const string ModulePath = "./_content/Blazor-ApexGantt/js/blazor-apexgantt.js?ver=3.20.0";
 
     private readonly IJSRuntime _jsRuntime;
     private IJSObjectReference? _module;
@@ -57,13 +57,39 @@ public class ApexGanttInterop : IAsyncDisposable
         => await (await GetModuleAsync()).InvokeVoidAsync("addTask", elementId, taskJson);
 
     public async Task UpdateTaskAsync(string elementId, string taskId, string updatesJson)
-        => await (await GetModuleAsync()).InvokeVoidAsync("updateTask", elementId, taskId, updatesJson);
+        => await UpdateTaskAsync(elementId, taskId, updatesJson, null);
+
+    /// <summary>Applies partial updates to a task, with the core's <c>UpdateTaskOptions</c> as JSON (or null).</summary>
+    public async Task UpdateTaskAsync(string elementId, string taskId, string updatesJson, string? optionsJson)
+        => await (await GetModuleAsync()).InvokeVoidAsync("updateTask", elementId, taskId, updatesJson, optionsJson);
 
     public async Task DeleteTaskAsync(string elementId, string taskId)
         => await (await GetModuleAsync()).InvokeVoidAsync("deleteTask", elementId, taskId);
 
     public async Task MoveTaskAsync(string elementId, string taskId, string? optionsJson)
         => await (await GetModuleAsync()).InvokeVoidAsync("moveTask", elementId, taskId, optionsJson);
+
+    // --- Reading the data ----------------------------------------------------
+    /// <summary>A copy of one task as it is now, or default for an unknown id.</summary>
+    public async Task<T> GetTaskAsync<T>(string elementId, string taskId)
+        => await (await GetModuleAsync()).InvokeAsync<T>("getTask", elementId, taskId);
+
+    /// <summary>Copies of every task, in tree order.</summary>
+    public async Task<T> GetTasksAsync<T>(string elementId)
+        => await (await GetModuleAsync()).InvokeAsync<T>("getTasks", elementId);
+
+    /// <summary>Copies of every dependency link as it is now.</summary>
+    public async Task<T> GetDependenciesAsync<T>(string elementId)
+        => await (await GetModuleAsync()).InvokeAsync<T>("getDependencies", elementId);
+
+    // --- Expand / collapse ---------------------------------------------------
+    /// <summary>Opens a collapsed parent. False for an unknown id or a task with no children.</summary>
+    public async Task<bool> ExpandTaskAsync(string elementId, string taskId)
+        => await (await GetModuleAsync()).InvokeAsync<bool>("expandTask", elementId, taskId);
+
+    /// <summary>Collapses a parent. False for an unknown id or a task with no children.</summary>
+    public async Task<bool> CollapseTaskAsync(string elementId, string taskId)
+        => await (await GetModuleAsync()).InvokeAsync<bool>("collapseTask", elementId, taskId);
 
     // --- Dependencies --------------------------------------------------------
     public async Task<bool> AddDependencyAsync(string elementId, string fromId, string toId, string? optionsJson)
@@ -122,7 +148,11 @@ public class ApexGanttInterop : IAsyncDisposable
 
     // --- Selection / navigation / zoom / export ------------------------------
     public async Task<bool> ScrollToTaskAsync(string elementId, string taskId)
-        => await (await GetModuleAsync()).InvokeAsync<bool>("scrollToTask", elementId, taskId);
+        => await ScrollToTaskAsync(elementId, taskId, null);
+
+    /// <summary>Scrolls a task into view, with the core's <c>ScrollToTaskOptions</c> as JSON (or null).</summary>
+    public async Task<bool> ScrollToTaskAsync(string elementId, string taskId, string? optionsJson)
+        => await (await GetModuleAsync()).InvokeAsync<bool>("scrollToTask", elementId, taskId, optionsJson);
 
     public async Task<T> GetSelectedTasksAsync<T>(string elementId)
         => await (await GetModuleAsync()).InvokeAsync<T>("getSelectedTasks", elementId);

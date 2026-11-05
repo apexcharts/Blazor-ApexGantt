@@ -6,7 +6,7 @@ using Blazor_ApexGantt.Serialization;
 namespace Blazor_ApexGantt.Models;
 
 /// <summary>
-/// Represents a task in the gantt chart. Mirrors the core <c>TaskInput</c> contract (apexgantt 3.15).
+/// Represents a task in the gantt chart. Mirrors the core <c>TaskInput</c> contract (apexgantt 3.20).
 /// </summary>
 public class GanttTask
 {
@@ -23,7 +23,8 @@ public class GanttTask
     /// day is dropped). When you pass DateTime or DateOnly values, set
     /// <see cref="GanttOptions.InputDateFormat"/> to "YYYY-MM-DD" so the edit dialog and the dates
     /// the chart writes back match them. A parent task may omit both dates: its summary bar spans
-    /// its children.
+    /// its children. A row with no start date is kept only when a dated task sits somewhere under
+    /// it; any other undated row is skipped with a warning.
     /// </summary>
     [JsonConverter(typeof(GanttDateConverter))]
     public object? StartTime { get; set; }
@@ -31,11 +32,9 @@ public class GanttTask
     /// <summary>
     /// Task end date, in the same forms as <see cref="StartTime"/>. Required for a bar. A milestone
     /// needs only <see cref="StartTime"/>: set <see cref="Type"/> to <see cref="TaskType.Milestone"/>,
-    /// which is the clearest form and works on every apexgantt version. With the bundled apexgantt
-    /// 3.15.0 (and up to 3.19), a task with a start, no end and no milestone type makes the core
-    /// throw "Task must have an id, start, and end date", and the chart does not render. From
-    /// apexgantt 3.20.0 a task with no end and no <see cref="Type"/> is drawn as a milestone; an
-    /// explicit <see cref="TaskType.Task"/> with no end still throws.
+    /// which is the clearest form. A childless task with a start, no end and no <see cref="Type"/>
+    /// is also drawn as a milestone, while a task with children is a summary over them. An explicit
+    /// <see cref="TaskType.Task"/> with no end makes the core throw.
     /// </summary>
     [JsonConverter(typeof(GanttDateConverter))]
     public object? EndTime { get; set; }
@@ -66,6 +65,12 @@ public class GanttTask
 
     /// <summary>Background color for this task's row.</summary>
     public string? RowBackgroundColor { get; set; }
+
+    /// <summary>
+    /// Color of the label drawn inside this task's bar. When omitted the chart-level
+    /// <see cref="GanttOptions.BarTextColor"/> applies.
+    /// </summary>
+    public string? BarTextColor { get; set; }
 
     /// <summary>Baseline (planned) dates rendered below the actual bar when baselines are enabled.</summary>
     public BaselineInput? Baseline { get; set; }

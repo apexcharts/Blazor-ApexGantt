@@ -6,11 +6,23 @@
 
 <h1>ApexGantt Events Demo</h1>
 <p>
-    Edit, drag, or resize tasks to see all events in action.
+    Edit, drag, or resize tasks to see all events in action. Each update names its source
+    (drag, resize, progress, dialog, inline, keyboard or api).
 </p>
+
+<div class="mb-3 d-flex flex-wrap gap-2 api-buttons">
+    <button class="btn btn-sm btn-outline-primary" id="btn-read-data" @onclick="ReadData">Read chart data</button>
+    <button class="btn btn-sm btn-outline-primary" id="btn-update-api" @onclick="() => SetTestingProgress(false)">Set Testing progress</button>
+    <button class="btn btn-sm btn-outline-primary" id="btn-update-silent" @onclick="() => SetTestingProgress(true)">Set Testing progress (silent)</button>
+    <button class="btn btn-sm btn-outline-primary" id="btn-collapse" @onclick="Collapse">Collapse release</button>
+    <button class="btn btn-sm btn-outline-primary" id="btn-scroll" @onclick="ScrollToDeployment">Scroll to Deployment</button>
+    <button class="btn btn-sm btn-outline-primary" id="btn-dark" @onclick="ToggleTheme">Toggle theme (keeps edits)</button>
+</div>
+<p class="text-muted" id="api-status">@apiStatus</p>
 
 <div class="mb-4">
     <ApexGantt 
+        @ref="gantt"
         Options="@eventsOptions" 
         Tasks="@tasks"
         OnTaskUpdate="@HandleTaskUpdate"
@@ -120,6 +132,7 @@
     {
         Width = "100%",
         Height = "450px",
+        InputDateFormat = "YYYY-MM-DD", // matches how the wrapper writes DateTime values
 
         // enable editing to trigger events
         EnableTaskCRUDToolbar = true,
@@ -134,9 +147,12 @@
 
     private List<GanttTask> tasks = new()
     {
+        // a parent with no dates: its summary bar spans its children
+        new GanttTask { Id = "release", Name = "Release 1.0" },
         new GanttTask
         {
             Id = "task1",
+            ParentId = "release",
             Name = "Planning Phase",
             StartTime = DateTime.Now,
             EndTime = DateTime.Now.AddDays(5),
@@ -146,6 +162,7 @@
         new GanttTask
         {
             Id = "task2",
+            ParentId = "release",
             Name = "Development",
             StartTime = DateTime.Now.AddDays(5),
             EndTime = DateTime.Now.AddDays(15),
@@ -156,6 +173,7 @@
         new GanttTask
         {
             Id = "task3",
+            ParentId = "release",
             Name = "Testing",
             StartTime = DateTime.Now.AddDays(15),
             EndTime = DateTime.Now.AddDays(20),
@@ -166,6 +184,7 @@
         new GanttTask
         {
             Id = "task4",
+            ParentId = "release",
             Name = "Deployment",
             StartTime = DateTime.Now.AddDays(20),
             EndTime = DateTime.Now.AddDays(22),
@@ -186,13 +205,53 @@
     }
 
     private List<EventLogEntry> eventLog = new();
+    private ApexGantt? gantt;
+    private string apiStatus = "";
+    private int progressStep;
+
+    private async Task ReadData()
+    {
+        var all = await gantt!.GetTasksAsync();
+        var links = await gantt.GetDependenciesAsync();
+        var testing = await gantt.GetTaskAsync("task3");
+        apiStatus = $"{all.Count} tasks, {links.Count} links; Testing is at level {testing?.Level}, {testing?.Progress}%";
+    }
+
+    private async Task SetTestingProgress(bool silent)
+    {
+        progressStep = (progressStep + 1) % 10;
+        await gantt!.UpdateTaskAsync("task3", new GanttTask { Progress = progressStep * 10 }, silent);
+        var testing = await gantt.GetTaskAsync("task3");
+        apiStatus = $"Testing set to {testing?.Progress}%{(silent ? " silently" : "")}";
+    }
+
+    private async Task Collapse()
+    {
+        var done = await gantt!.CollapseTaskAsync("release");
+        apiStatus = $"collapsed: {done}";
+    }
+
+    private async Task ScrollToDeployment()
+    {
+        var shown = await gantt!.ScrollToTaskAsync("task4");
+        apiStatus = $"scrolled: {shown}";
+    }
+
+    private async Task ToggleTheme()
+    {
+        eventsOptions.Theme = eventsOptions.Theme == ThemeMode.Dark ? ThemeMode.Light : ThemeMode.Dark;
+        // the task list has not changed, so this leaves the chart's data and undo history alone
+        await gantt!.UpdateAsync();
+        var testing = await gantt.GetTaskAsync("task3");
+        apiStatus = $"theme {eventsOptions.Theme}; Testing still at {testing?.Progress}%";
+    }
 
     private void HandleTaskUpdate(TaskUpdateEventArgs args)
     {
         eventLog.Add(new EventLogEntry
         {
             Type = "update",
-            Message = $"Task '{args.TaskId}' is being updated",
+            Message = $"Task '{args.TaskId}' is being updated (source: {args.Source})",
             Timestamp = args.Timestamp
         });
         StateHasChanged();
@@ -204,7 +263,7 @@
         eventLog.Add(new EventLogEntry
         {
             Type = "success",
-            Message = $"Task '{args.TaskId}' updated successfully. Name: {task?.Name}, Progress: {task?.Progress}%",
+            Message = $"Task '{args.TaskId}' updated successfully (source: {args.Source}). Name: {task?.Name}, Progress: {task?.Progress}%",
             Timestamp = args.Timestamp
         });
         StateHasChanged();

@@ -1,5 +1,6 @@
 @using Microsoft.JSInterop
 @using System.Collections.Generic
+@using System.Text.Json
 @using Blazor_ApexGantt.Interop
 @using Blazor_ApexGantt.Models
 @using Blazor_ApexGantt.Serialization
@@ -15,6 +16,9 @@
     private ApexGanttInterop? _interop;
     private bool _chartInitialized;
     private DotNetObjectReference<ApexGantt>? _dotNetRef;
+    // the task list (and parsing config) as last sent to the chart, so UpdateAsync() can leave
+    // out the data when it has not changed
+    private string? _sentDataJson;
 
     /// <summary>Gantt chart options and configuration.</summary>
     [Parameter] public GanttOptions Options { get; set; } = new();
@@ -24,13 +28,14 @@
 
     // --- Event callbacks -----------------------------------------------------
     /// <summary>
-    /// Raised as a task edit is applied. Which edits raise it depends on the apexgantt version:
-    /// see <see cref="TaskUpdateEventArgs"/>.
+    /// Raised once per committed task edit, on every edit path (drag, resize, progress, dialog,
+    /// inline, keyboard and <see cref="UpdateTaskAsync(string, GanttTask)"/>), just before it is
+    /// applied. <see cref="TaskUpdateEventArgs.Source"/> names the path.
     /// </summary>
     [Parameter] public EventCallback<TaskUpdateEventArgs> OnTaskUpdate { get; set; }
     /// <summary>
-    /// Raised after a task edit is stored. Which edits raise it depends on the apexgantt version:
-    /// see <see cref="TaskUpdateEventArgs"/>.
+    /// Raised after a task edit is stored, on the same paths as <see cref="OnTaskUpdate"/>.
+    /// <see cref="TaskUpdateSuccessEventArgs.Source"/> names the path.
     /// </summary>
     [Parameter] public EventCallback<TaskUpdateSuccessEventArgs> OnTaskUpdateSuccess { get; set; }
     [Parameter] public EventCallback<TaskUpdateErrorEventArgs> OnTaskUpdateError { get; set; }
@@ -61,31 +66,75 @@
             await LicenseService.InitializeLicenseAsync();
 
             _dotNetRef = DotNetObjectReference.Create(this);
-            _chartInitialized = await _interop.InitAsync(_chartId, BuildOptionsJson(), _dotNetRef);
+            var dataJson = DataJson();
+            _chartInitialized = await _interop.InitAsync(_chartId, BuildOptionsJson(includeTasks: true), _dotNetRef);
+            if (_chartInitialized) _sentDataJson = dataJson;
         }
     }
 
-    private string BuildOptionsJson()
+    private string BuildOptionsJson(bool includeTasks)
     {
         // the Tasks parameter, when provided, is the source of truth for series
-        var effectiveTasks = Tasks ?? Options.Tasks;
-        Options.Tasks = effectiveTasks;
-        return GanttSerializer.Serialize(Options);
+        Options.Tasks = Tasks ?? Options.Tasks;
+        if (includeTasks) return GanttSerializer.Serialize(Options);
+
+        // The core replaces its data when an update carries `series` or `parsing` (parsing
+        // re-reads the series it was given), so an update that keeps the data sends neither,
+        // wherever they come from (AdditionalOptions included).
+        var payload = JsonSerializer.SerializeToNode(Options, GanttSerializer.Default)!.AsObject();
+        payload.Remove("series");
+        payload.Remove("parsing");
+        return payload.ToJsonString(GanttSerializer.Default);
     }
+
+    // What decides whether an update has to resend the data: the task list and the parsing
+    // config that reads it, as the core would receive them.
+    private string DataJson()
+        => GanttSerializer.Serialize(new object?[] { Tasks ?? Options.Tasks, Options.Parsing });
 
     // --- Public API ----------------------------------------------------------
 
     /// <summary>
-    /// Re-applies the current <see cref="Options"/> to the live chart. The payload carries the
-    /// tasks (<see cref="Tasks"/>, or <c>Options.Tasks</c> when that is null) as the chart's data,
-    /// so it replaces what the chart holds: edits made in the chart (drags, dialog or inline edits)
-    /// that you have not copied into your task list are discarded. From apexgantt 3.20.0 replacing
-    /// the data also clears the undo history.
+    /// Re-applies the current <see cref="Options"/> to the live chart, and sends the tasks
+    /// (<see cref="Tasks"/>, or <c>Options.Tasks</c> when that is null) only when they have
+    /// changed since they were last sent: tasks added, removed or edited (compared by value, so
+    /// changing the list in place counts), or a changed <see cref="GanttOptions.Parsing"/>.
+    /// When the tasks are left out, the chart keeps its data, edits made in the chart included,
+    /// and its undo history. When they are sent they replace the chart's data: edits made in the
+    /// chart that you have not copied into your task list are discarded and the undo history is
+    /// cleared. See <see cref="UpdateOptionsAsync"/> and <see cref="UpdateAsync(bool)"/>.
     /// </summary>
     public async Task UpdateAsync()
     {
         if (_interop is null || !_chartInitialized) return;
-        await _interop.UpdateAsync(_chartId, BuildOptionsJson());
+        var dataJson = DataJson();
+        await SendUpdateAsync(includeTasks: dataJson != _sentDataJson, dataJson);
+    }
+
+    /// <summary>
+    /// Re-applies the current <see cref="Options"/> to the live chart, choosing whether the tasks
+    /// go with them. <paramref name="replaceTasks"/> true always sends the tasks, so the chart
+    /// reloads your task list even when it has not changed: use it to discard the edits made in the
+    /// chart (the undo history is cleared too). False never sends them, the same as
+    /// <see cref="UpdateOptionsAsync"/>.
+    /// </summary>
+    public async Task UpdateAsync(bool replaceTasks)
+    {
+        if (_interop is null || !_chartInitialized) return;
+        await SendUpdateAsync(replaceTasks, DataJson());
+    }
+
+    /// <summary>
+    /// Re-applies the current <see cref="Options"/> to the live chart without sending the tasks
+    /// or <see cref="GanttOptions.Parsing"/>, so the chart keeps its data, edits made in the chart
+    /// included, and its undo history. Use it for a theme, zoom, column or any other option change.
+    /// </summary>
+    public Task UpdateOptionsAsync() => UpdateAsync(replaceTasks: false);
+
+    private async Task SendUpdateAsync(bool includeTasks, string dataJson)
+    {
+        await _interop!.UpdateAsync(_chartId, BuildOptionsJson(includeTasks));
+        if (includeTasks) _sentDataJson = dataJson;
     }
 
     /// <summary>Adds a task. Raises <see cref="OnTaskAdded"/>.</summary>
@@ -97,14 +146,25 @@
 
     /// <summary>
     /// Applies partial updates to a task: only the non-null fields of
-    /// <paramref name="updates"/> are sent. With the bundled apexgantt 3.15.0 (and up to 3.19)
-    /// this raises no <see cref="OnTaskUpdate"/> or <see cref="OnTaskUpdateSuccess"/>; from
-    /// apexgantt 3.20.0 it raises both.
+    /// <paramref name="updates"/> are sent. Runs any <c>beforeTaskUpdate</c> hook, is recorded in
+    /// the undo history, and raises <see cref="OnTaskUpdate"/> and <see cref="OnTaskUpdateSuccess"/>
+    /// with the source "api". Throws a <see cref="JSException"/> when the update fails (after
+    /// raising <see cref="OnTaskUpdateError"/>).
     /// </summary>
-    public async Task UpdateTaskAsync(string taskId, GanttTask updates)
+    public Task UpdateTaskAsync(string taskId, GanttTask updates) => UpdateTaskAsync(taskId, updates, silent: false);
+
+    /// <summary>
+    /// Applies partial updates to a task, like <see cref="UpdateTaskAsync(string, GanttTask)"/>.
+    /// With <paramref name="silent"/> true, <see cref="OnTaskUpdate"/> and
+    /// <see cref="OnTaskUpdateSuccess"/> are not raised: use it for a rollback or to apply a
+    /// server echo, so the handler that saves edits does not send the same change back. The change
+    /// is still checked by <c>beforeTaskUpdate</c> and recorded in the undo history.
+    /// </summary>
+    public async Task UpdateTaskAsync(string taskId, GanttTask updates, bool silent)
     {
         if (_interop is null) return;
-        await _interop.UpdateTaskAsync(_chartId, taskId, GanttSerializer.Serialize(updates));
+        var options = silent ? GanttSerializer.Serialize(new Dictionary<string, object> { ["silent"] = true }) : null;
+        await _interop.UpdateTaskAsync(_chartId, taskId, GanttSerializer.Serialize(updates), options);
     }
 
     /// <summary>
@@ -127,10 +187,50 @@
     }
 
     /// <summary>
+    /// Gets a task as it is now, edits made in the chart included, or null for an unknown id. The
+    /// result is a copy: changing it does not change the chart (use
+    /// <see cref="UpdateTaskAsync(string, GanttTask)"/> for that).
+    /// </summary>
+    public async Task<GanttTaskInfo?> GetTaskAsync(string taskId)
+        => _interop is null ? null : await _interop.GetTaskAsync<GanttTaskInfo?>(_chartId, taskId);
+
+    /// <summary>
+    /// Gets every task as it is now, edits included, as copies in tree order (each parent before
+    /// its children). Collapsed and filtered-out tasks are included. A task's <c>dependency</c>
+    /// (in <see cref="GanttTaskInfo.AdditionalData"/>) holds only the link it was loaded with, so to
+    /// save the chart's data save <see cref="GetDependenciesAsync"/> with the tasks.
+    /// </summary>
+    public async Task<List<GanttTaskInfo>> GetTasksAsync()
+        => _interop is null ? new() : await _interop.GetTasksAsync<List<GanttTaskInfo>>(_chartId);
+
+    /// <summary>
+    /// Gets every dependency link as it is now: the links the tasks were loaded with and the ones
+    /// added with <see cref="AddDependencyAsync"/> or drawn in the chart, less removed ones. Undo
+    /// and redo are reflected.
+    /// </summary>
+    public async Task<List<DependencyLinkInfo>> GetDependenciesAsync()
+        => _interop is null ? new() : await _interop.GetDependenciesAsync<List<DependencyLinkInfo>>(_chartId);
+
+    /// <summary>
+    /// Opens a collapsed parent so its children show. View state only: not recorded in the undo
+    /// history. Returns false for an unknown id or a task with no children, otherwise true.
+    /// </summary>
+    public async Task<bool> ExpandTaskAsync(string taskId)
+        => _interop is not null && await _interop.ExpandTaskAsync(_chartId, taskId);
+
+    /// <summary>
+    /// Collapses a parent so its children hide. View state only: not recorded in the undo history.
+    /// Returns false for an unknown id or a task with no children, otherwise true.
+    /// </summary>
+    public async Task<bool> CollapseTaskAsync(string taskId)
+        => _interop is not null && await _interop.CollapseTaskAsync(_chartId, taskId);
+
+    /// <summary>
     /// Adds a dependency between two tasks. Returns false when a <c>beforeDependencyChange</c>
-    /// hook vetoes it. Throws a <see cref="JSException"/> when either task id is unknown or the
-    /// link already exists; the method does not check for cycles. Dependencies are drawn and feed
-    /// the critical path; they never move tasks.
+    /// hook vetoes it. Throws a <see cref="JSException"/> when either task id is unknown, the link
+    /// already exists, it links a task to itself, it would close a cycle, or (unless
+    /// <c>allowSummaryDescendantLinks</c> is set) it links a summary task to one of its
+    /// descendants. Dependencies are drawn and feed the critical path; they never move tasks.
     /// </summary>
     public async Task<bool> AddDependencyAsync(string fromId, string toId, DependencyType? type = null, int? lag = null)
     {
@@ -236,18 +336,28 @@
         => _interop is null ? Array.Empty<string>() : await _interop.GetColumnOrderAsync(_chartId);
 
     /// <summary>
-    /// Scrolls the timeline and the row list so a task's bar is in view. With the bundled
-    /// apexgantt 3.15.0 (and up to 3.19) it returns true when it scrolled and false when the task
-    /// id is unknown or the bar is already in view, and it does not open a collapsed parent. From
-    /// apexgantt 3.20.0 the core first expands any collapsed ancestors.
+    /// Scrolls the timeline and the row list so a task's bar is in view, first opening any
+    /// collapsed ancestors (and, while grouping, its collapsed group). Returns true when the row is
+    /// shown (scrolled to, or already in view) and false for an unknown id or a task the active
+    /// filter hides.
     /// </summary>
-    public async Task<bool> ScrollToTaskAsync(string taskId)
-        => _interop is not null && await _interop.ScrollToTaskAsync(_chartId, taskId);
+    public Task<bool> ScrollToTaskAsync(string taskId) => ScrollToTaskAsync(taskId, expand: true);
+
+    /// <summary>
+    /// Scrolls a task's bar into view, like <see cref="ScrollToTaskAsync(string)"/>. With
+    /// <paramref name="expand"/> false, collapsed ancestors are left closed, and a task they hide
+    /// is not scrolled to (the method returns false).
+    /// </summary>
+    public async Task<bool> ScrollToTaskAsync(string taskId, bool expand)
+    {
+        if (_interop is null) return false;
+        var options = GanttSerializer.Serialize(new Dictionary<string, object> { ["expand"] = expand });
+        return await _interop.ScrollToTaskAsync(_chartId, taskId, options);
+    }
 
     /// <summary>
     /// Gets the currently selected tasks. Needs <see cref="GanttOptions.EnableSelection"/>;
-    /// without it the selection methods do nothing (from apexgantt 3.20.0 the core also logs a
-    /// one-time warning).
+    /// without it the selection methods do nothing and the core logs a one-time warning.
     /// </summary>
     public async Task<List<GanttTaskInfo>> GetSelectedTasksAsync()
         => _interop is null ? new() : await _interop.GetSelectedTasksAsync<List<GanttTaskInfo>>(_chartId);
