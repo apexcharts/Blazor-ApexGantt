@@ -43,7 +43,7 @@ git clone https://github.com/apexcharts/Blazor-ApexGantt.git
 
 ### 1. No script tag needed
 
-The ApexGantt core library (apexgantt 3.20.0) is bundled with this package and loaded on
+The ApexGantt core library (apexgantt 3.21.0) is bundled with this package and loaded on
 demand as an ES module, so you do not need to add any `<script>` tag or CDN reference. Just
 install the NuGet package and register the services (see License Configuration below).
 
@@ -363,7 +363,7 @@ drag, the edit dialog, inline edits, the keyboard and `UpdateTaskAsync`.
 
 ## Ignite UI Theming
 
-From the Blazor-ApexGantt release that bundles apexgantt 3.21.0, charts can follow the Ignite UI
+From Blazor-ApexGantt 1.5.0 (which bundles apexgantt 3.21.0), charts can follow the Ignite UI
 theme on the page: bar, grid, text and surface colours, the font, light or dark. It is an add-on,
 it is free, and it needs no license key. Turn it on where you register the services:
 
@@ -672,6 +672,8 @@ Blazor-ApexGantt/
 │   │   └── wwwroot/js/
 │   │       ├── apexgantt.es.min.js    # ApexGantt core (ES module, imported by the bridge)
 │   │       ├── apexgantt.min.js       # ApexGantt core (UMD build)
+│   │       ├── apexgantt.ignite-ui.es.min.js  # Ignite UI add-on (ES module, opt-in)
+│   │       ├── apexgantt.ignite-ui.min.js     # Ignite UI add-on (UMD build)
 │   │       └── blazor-apexgantt.js    # Bridge script
 │   │
 │   └── Blazor-ApexGantt.Sample/       # Demo application

@@ -2,7 +2,7 @@
 //
 // Self-contained: imports the vendored apexgantt ESM dist directly, so the host app
 // no longer needs a <script> tag or a CDN reference for the core library.
-import { ApexGantt } from "./apexgantt.es.min.js?ver=3.20.0";
+import { ApexGantt } from "./apexgantt.es.min.js?ver=3.21.0";
 
 // chart instances and their event-listener cleanups, keyed by element id
 const instances = {};
