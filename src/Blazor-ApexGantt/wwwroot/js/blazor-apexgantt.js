@@ -106,6 +106,25 @@ export function setLicense(licenseKey) {
   }
 }
 
+// pending or settled load of the Ignite UI add-on (loaded at most once)
+let igniteUILoad = null;
+
+// loads the Ignite UI add-on, which registers the Ignite UI adapter on the family-wide
+// registry so charts read the page's --ig-* tokens. resolves to false (with a console error)
+// when the file cannot be loaded, so a missing add-on never blocks a render.
+export function loadIgniteUI() {
+  if (!igniteUILoad) {
+    igniteUILoad = import("./apexgantt.ignite-ui.es.min.js?ver=3.21.0").then(
+      () => true,
+      (error) => {
+        console.error("failed to load the apexgantt Ignite UI add-on:", error);
+        return false;
+      }
+    );
+  }
+  return igniteUILoad;
+}
+
 export function init(elementId, optionsJson, dotNetRef) {
   try {
     const element = document.getElementById(elementId);

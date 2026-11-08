@@ -361,6 +361,55 @@ Each hook receives one object: `beforeTaskUpdate` gets `{ task, updates }` and `
 gets `{ input, parentId }`. `beforeTaskUpdate` runs for every edit path: drag, resize, progress
 drag, the edit dialog, inline edits, the keyboard and `UpdateTaskAsync`.
 
+## Ignite UI Theming
+
+From the Blazor-ApexGantt release that bundles apexgantt 3.21.0, charts can follow the Ignite UI
+theme on the page: bar, grid, text and surface colours, the font, light or dark. It is an add-on,
+it is free, and it needs no license key. Turn it on where you register the services:
+
+```csharp
+builder.Services.AddApexGantt(options =>
+{
+    options.IgniteUI = true;
+});
+```
+
+The component then loads `_content/Blazor-ApexGantt/js/apexgantt.ignite-ui.es.min.js` before the
+first chart renders. To load it yourself instead, add the script-tag build to `index.html` (or
+`App.razor`):
+
+```html
+<script src="_content/Blazor-ApexGantt/js/apexgantt.ignite-ui.min.js"></script>
+```
+
+The Ignite UI tokens (`--ig-*`) are the lowest-ranked layer above the theme defaults. Anything above
+them wins:
+
+| Rank | Source                                                  |
+| ---- | ------------------------------------------------------- |
+| 1    | An option you set in `GanttOptions`                     |
+| 2    | An `--apex-gantt-*` CSS variable                        |
+| 3    | An `--apx-*` family token                               |
+| 4    | A registered theme named in `ThemeName`                 |
+| 5    | The Ignite UI theme (`--ig-*`), with the add-on loaded  |
+| 6    | The theme defaults                                      |
+
+A task's own `BarBackgroundColor` wins over every layer. Leave `Theme` unset (with no
+`BackgroundColor`) to follow a sheet's dark variant; `ThemeMode.Light` or `ThemeMode.Dark` pins the
+mode. `ThemeName` takes the name of a theme registered from JavaScript with `registerTheme`, and wins
+over `Theme` when both are set.
+
+To turn the layer off for one chart, set `DesignSystem = false`; the `--apx-*` tokens still apply.
+`Tokens = false` stops every token read (`--apx-*` and `--ig-*`). Without the add-on the `--ig-*`
+tokens are ignored, with no error.
+
+Colours resolve when the chart renders, not live. After a stylesheet swap (an Ignite UI light/dark
+switch, say), call `UpdateOptionsAsync()` to repaint; the tasks and the undo history are kept.
+
+The font comes from `--ig-font-family`, which is usually a web font, and the Ignite UI theme sheets
+do not load it. Load the font on the page; if it finishes loading after the first render, call
+`UpdateOptionsAsync()` so the text is measured with it.
+
 ## Events
 
 Every core event is an `EventCallback` parameter on the component:

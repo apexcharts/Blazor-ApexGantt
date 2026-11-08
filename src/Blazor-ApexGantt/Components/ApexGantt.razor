@@ -8,6 +8,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 @inject ApexGanttLicenseService LicenseService
+@inject Microsoft.Extensions.Options.IOptions<Blazor_ApexGantt.Configuration.ApexGanttConfiguration> Configuration
 
 <div id="@_chartId"></div>
 
@@ -64,6 +65,8 @@
             _interop = new ApexGanttInterop(JSRuntime);
             // set license (if configured) before creating the chart
             await LicenseService.InitializeLicenseAsync();
+            // load the Ignite UI add-on (if enabled) so the first render reads the design system
+            if (Configuration.Value.IgniteUI) await _interop.LoadIgniteUIAsync();
 
             _dotNetRef = DotNetObjectReference.Create(this);
             var dataJson = DataJson();

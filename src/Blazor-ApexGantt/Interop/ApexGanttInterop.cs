@@ -31,6 +31,15 @@ public class ApexGanttInterop : IAsyncDisposable
         return await module.InvokeAsync<bool>("setLicense", licenseKey);
     }
 
+    /// <summary>
+    /// Loads the Ignite UI add-on (at most once); returns false when it cannot be loaded.
+    /// </summary>
+    public async Task<bool> LoadIgniteUIAsync()
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<bool>("loadIgniteUI");
+    }
+
     /// <summary>Initializes a new gantt chart from a serialized options payload.</summary>
     public async Task<bool> InitAsync<T>(string elementId, string optionsJson, DotNetObjectReference<T>? dotNetRef = null) where T : class
     {

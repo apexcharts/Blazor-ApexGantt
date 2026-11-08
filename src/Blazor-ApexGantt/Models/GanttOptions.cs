@@ -15,8 +15,50 @@ public class GanttOptions
 {
     // --- General ------------------------------------------------------------
 
-    /// <summary>Color theme preset (light or dark).</summary>
+    /// <summary>
+    /// Color theme preset (light or dark). Left unset (with no <see cref="BackgroundColor"/>),
+    /// the chart follows a design system that declares a dark variant. To use a theme registered
+    /// on the family registry by name, set <see cref="ThemeName"/> instead.
+    /// </summary>
+    [JsonIgnore]
     public ThemeMode? Theme { get; set; }
+
+    /// <summary>
+    /// The name of a theme registered on the family-wide registry (with <c>registerTheme</c>
+    /// from JavaScript), or "light" or "dark". Takes precedence over <see cref="Theme"/> when
+    /// both are set. A name nothing is registered under renders as light. Requires apexgantt
+    /// 3.21.0 or later.
+    /// </summary>
+    [JsonIgnore]
+    public string? ThemeName { get; set; }
+
+    /// <summary>The <c>theme</c> value sent to the core: <see cref="ThemeName"/>, else <see cref="Theme"/>.</summary>
+    [JsonInclude]
+    [JsonPropertyName("theme")]
+    internal string? ThemeValue => !string.IsNullOrWhiteSpace(ThemeName)
+        ? ThemeName
+        : Theme switch
+        {
+            ThemeMode.Light => "light",
+            ThemeMode.Dark => "dark",
+            _ => null,
+        };
+
+    /// <summary>
+    /// Set to false to stop the chart reading the --apx-* family tokens and the page's design
+    /// system (including its light or dark variant). Default: true. Requires apexgantt 3.21.0 or
+    /// later.
+    /// </summary>
+    public bool? Tokens { get; set; }
+
+    /// <summary>
+    /// Set to false to stop the chart reading the page's design system (the Ignite UI --ig-*
+    /// tokens, including its light or dark variant). The --apx-* family tokens still apply.
+    /// Has an effect only while the Ignite UI add-on is loaded (see
+    /// <see cref="Configuration.ApexGanttConfiguration.IgniteUI"/>). Default: true. Requires
+    /// apexgantt 3.21.0 or later.
+    /// </summary>
+    public bool? DesignSystem { get; set; }
 
     /// <summary>Localization and text-direction options.</summary>
     public LocaleOptions? Locale { get; set; }
