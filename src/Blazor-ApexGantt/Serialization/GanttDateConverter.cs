@@ -15,6 +15,10 @@ namespace Blazor_ApexGantt.Serialization;
 /// </summary>
 public class GanttDateConverter : JsonConverter<object>
 {
+    /// <summary>
+    /// Reads a string as itself, null as null, and any other JSON value as a cloned
+    /// <see cref="JsonElement"/>.
+    /// </summary>
     public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         switch (reader.TokenType)
@@ -29,6 +33,11 @@ public class GanttDateConverter : JsonConverter<object>
         }
     }
 
+    /// <summary>
+    /// Writes a <see cref="DateTime"/> or <see cref="DateOnly"/> as an invariant-culture
+    /// <c>yyyy-MM-dd</c> string, a string unchanged, and any other value with the default
+    /// serializer for its runtime type.
+    /// </summary>
     public override void Write(Utf8JsonWriter writer, object value, JsonSerializerOptions options)
     {
         switch (value)

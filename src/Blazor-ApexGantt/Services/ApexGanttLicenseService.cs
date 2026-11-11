@@ -13,6 +13,12 @@ public class ApexGanttLicenseService
     private readonly ApexGanttConfiguration _configuration;
     private bool _licenseInitialized;
 
+    /// <summary>
+    /// creates the service; the key in <see cref="ApexGanttConfiguration.LicenseKey"/> is applied
+    /// on the first call to <see cref="InitializeLicenseAsync"/>
+    /// </summary>
+    /// <param name="interop">the interop used to pass the key to the core</param>
+    /// <param name="configuration">the configuration that carries the licence key</param>
     public ApexGanttLicenseService(
         ApexGanttInterop interop, 
         IOptions<ApexGanttConfiguration> configuration)
