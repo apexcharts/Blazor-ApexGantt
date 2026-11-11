@@ -277,7 +277,7 @@ public class TaskProgressChangedEventArgs
 {
     /// <summary>Id of the task whose progress changed.</summary>
     public string TaskId { get; set; } = string.Empty;
-    /// <summary>Progress before the change, an integer percentage from 0 to 100.</summary>
+    /// <summary>Progress before the change, a percentage from 0 to 100 as the task stored it (not rounded, unlike <see cref="NewProgress"/>).</summary>
     public double OldProgress { get; set; }
     /// <summary>Progress after the change, an integer percentage from 0 to 100.</summary>
     public double NewProgress { get; set; }
@@ -385,7 +385,7 @@ public class GroupChangeEventArgs
 /// <summary>Fired when a task-list column is resized.</summary>
 public class ColumnResizeEventArgs
 {
-    /// <summary>Key of the column whose width changed.</summary>
+    /// <summary>Key of the column whose width changed, or <c>"*"</c> when every column width was reset at once.</summary>
     public string Key { get; set; } = string.Empty;
     /// <summary>The column's new width in pixels; null when it was reset to its automatic width.</summary>
     public int? Width { get; set; }
