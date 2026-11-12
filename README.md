@@ -43,7 +43,7 @@ git clone https://github.com/apexcharts/Blazor-ApexGantt.git
 
 ### 1. No script tag needed
 
-The ApexGantt core library (apexgantt 3.21.0) is bundled with this package and loaded on
+The ApexGantt core library (apexgantt 3.23.1) is bundled with this package and loaded on
 demand as an ES module, so you do not need to add any `<script>` tag or CDN reference. Just
 install the NuGet package and register the services (see License Configuration below).
 
@@ -674,6 +674,7 @@ Blazor-ApexGantt/
 │   │       ├── apexgantt.min.js       # ApexGantt core (UMD build)
 │   │       ├── apexgantt.ignite-ui.es.min.js  # Ignite UI add-on (ES module, opt-in)
 │   │       ├── apexgantt.ignite-ui.min.js     # Ignite UI add-on (UMD build)
+│   │       ├── locales/ja.es.min.js   # Japanese locale pack (ES module, loaded on demand)
 │   │       └── blazor-apexgantt.js    # Bridge script
 │   │
 │   └── Blazor-ApexGantt.Sample/       # Demo application

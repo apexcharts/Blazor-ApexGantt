@@ -8,7 +8,7 @@ namespace Blazor_ApexGantt.Interop;
 /// </summary>
 public class ApexGanttInterop : IAsyncDisposable
 {
-    private const string ModulePath = "./_content/Blazor-ApexGantt/js/blazor-apexgantt.js?ver=3.21.0";
+    private const string ModulePath = "./_content/Blazor-ApexGantt/js/blazor-apexgantt.js?ver=3.23.1";
 
     private readonly IJSRuntime _jsRuntime;
     private IJSObjectReference? _module;

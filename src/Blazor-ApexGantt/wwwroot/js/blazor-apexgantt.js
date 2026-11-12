@@ -2,7 +2,7 @@
 //
 // Self-contained: imports the vendored apexgantt ESM dist directly, so the host app
 // no longer needs a <script> tag or a CDN reference for the core library.
-import { ApexGantt } from "./apexgantt.es.min.js?ver=3.21.0";
+import { ApexGantt } from "./apexgantt.es.min.js?ver=3.23.1";
 
 // chart instances and their event-listener cleanups, keyed by element id
 const instances = {};
@@ -114,7 +114,7 @@ let igniteUILoad = null;
 // when the file cannot be loaded, so a missing add-on never blocks a render.
 export function loadIgniteUI() {
   if (!igniteUILoad) {
-    igniteUILoad = import("./apexgantt.ignite-ui.es.min.js?ver=3.21.0").then(
+    igniteUILoad = import("./apexgantt.ignite-ui.es.min.js?ver=3.23.1").then(
       () => true,
       (error) => {
         console.error("failed to load the apexgantt Ignite UI add-on:", error);
