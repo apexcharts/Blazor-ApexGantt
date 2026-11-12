@@ -6,7 +6,7 @@ namespace Blazor_ApexGantt.Models;
 
 /// <summary>
 /// Configuration options for the gantt chart. Mirrors the high-value surface of the core
-/// <c>GanttUserOptions</c> (apexgantt 3.20). Anything not modeled here can be supplied via
+/// <c>GanttUserOptions</c> (apexgantt 3.23). Anything not modeled here can be supplied via
 /// <see cref="AdditionalOptions"/>. Function-typed options (renderers, hooks, formatters) are
 /// written as a <see cref="JsFunction"/>, whether through a typed property such as
 /// <see cref="TooltipTemplate"/> or as a value in <see cref="AdditionalOptions"/>.
@@ -60,7 +60,10 @@ public class GanttOptions
     /// </summary>
     public bool? DesignSystem { get; set; }
 
-    /// <summary>Localization and text-direction options.</summary>
+    /// <summary>
+    /// Localization and text-direction options: a bundled locale pack by name
+    /// (<see cref="LocaleOptions.Pack"/>), message overrides, timeline header formats and more.
+    /// </summary>
     public LocaleOptions? Locale { get; set; }
 
     /// <summary>Chart height (pixels as a number, or a CSS string such as "600px").</summary>
@@ -233,7 +236,13 @@ public class GanttOptions
     /// <summary>Baseline (planned-vs-actual) rendering.</summary>
     public BaselineOptions? Baseline { get; set; }
 
-    /// <summary>Working-calendar options (working days, holidays, non-working snapping).</summary>
+    /// <summary>
+    /// Working-calendar options (working days, holidays, non-working snapping) and the timeline
+    /// header's week start and fiscal year. A calendar that sets only
+    /// <see cref="CalendarOptions.WeekStart"/> and/or <see cref="CalendarOptions.FiscalYearStartMonth"/>
+    /// shapes the header and leaves every day a working day; any other calendar, an empty one
+    /// included, turns the working calendar on.
+    /// </summary>
     public CalendarOptions? Calendar { get; set; }
 
     /// <summary>Dependency-arrow appearance and interaction.</summary>

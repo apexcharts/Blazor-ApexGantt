@@ -31,6 +31,7 @@ const ROUTES = [
   "events-demo",
   "milestones-tooltips-demo",
   "advanced-demo",
+  "localization-demo",
 ];
 
 const failures = [];
@@ -174,10 +175,56 @@ async function checkApiRoundTrip() {
 
 await checkApiRoundTrip();
 
+// LocaleOptions.Pack crosses the interop as a name and only becomes the pack object when the
+// bridge imports the bundled locales/ja.es.min.js, so a broken path or name still renders an
+// English chart. The page opens at year zoom with Pack = "ja" and a header-only calendar
+// (WeekStart only): the year row reads 2026年, never 年度, and no weekend is shaded. The 年度
+// box adds FiscalYearStartMonth = 4 (still header-only, still no shading); the second box adds
+// a working-calendar property, which must shade the weekends, so the zero above is not vacuous.
+async function checkLocalization() {
+  const route = "localization-demo";
+  pageErrors = [];
+  await page.goto(BASE + "/" + route, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".gantt-container .bar-timeline", { timeout: 25000 });
+  const headers = () =>
+    page.locator(".gantt-container .timeline-header-cell").evaluateAll((cells) => cells.map((c) => c.textContent.trim()));
+  const weekends = () => page.locator(".gantt-container .apexgantt-day--weekend").count();
+
+  const calendarYears = await poll(async () => {
+    const h = await headers();
+    return h.some((t) => /^\d{4}年$/.test(t)) && !h.some((t) => t.includes("年度")) ? h : null;
+  });
+  if (!calendarYears) failures.push(`[${route}] Pack = "ja" did not render a 2026年 year row: ${JSON.stringify(await headers())}`);
+  const lang = await page.locator(".gantt-container").first().evaluate((el) => el.closest("[lang]")?.getAttribute("lang") ?? null);
+  if (lang !== "ja") failures.push(`[${route}] the chart root has lang=${lang}, expected ja`);
+  if ((await weekends()) !== 0) failures.push(`[${route}] a WeekStart-only calendar shaded ${await weekends()} weekend days`);
+
+  await page.check("#chk-fiscal");
+  const fiscalYears = await poll(async () => {
+    const h = await headers();
+    return h.some((t) => /^\d{4}年度$/.test(t)) ? h : null;
+  });
+  if (!fiscalYears) failures.push(`[${route}] FiscalYearStartMonth = 4 did not switch the year row to 年度: ${JSON.stringify(await headers())}`);
+  if ((await weekends()) !== 0) failures.push(`[${route}] a WeekStart + FiscalYearStartMonth calendar shaded ${await weekends()} weekend days`);
+
+  await page.check("#chk-weekends");
+  const shaded = await poll(async () => (await weekends()) > 0);
+  if (!shaded) failures.push(`[${route}] ShowNonWorkingStripes did not turn the working calendar on (no weekend stripes)`);
+
+  if (pageErrors.length) failures.push(`[${route}] console/page errors: ${JSON.stringify(pageErrors)}`);
+  console.log(
+    `[${route}] lang=${lang} calendarYears=${JSON.stringify((calendarYears || []).filter((t) => t.includes("年")))} ` +
+      `fiscalYears=${JSON.stringify((fiscalYears || []).filter((t) => t.includes("年度")))} ` +
+      `weekendStripes=${await weekends()} errors=${pageErrors.length}`
+  );
+}
+
+await checkLocalization();
+
 await browser.close();
 
 if (failures.length) {
   console.error("\nE2E SMOKE FAILED:\n" + failures.map((f) => "  - " + f).join("\n"));
   process.exit(1);
 }
-console.log("\nE2E smoke passed: all gantt demo pages rendered with no errors and the API round trip held.");
+console.log("\nE2E smoke passed: all gantt demo pages rendered with no errors, the API round trip held and the ja pack localized the header.");

@@ -288,7 +288,9 @@ reschedule its successors. `TaskDependency.LagUnit` is marked `[Obsolete]`: it h
 core has never read it, and apexgantt 3.20.0 deprecates it.
 
 Any `Calendar` object turns the working calendar on, even an empty one, with a Monday to Friday
-week unless you set `WorkingWeekdays`. Without a `Calendar` every day is a working day.
+week unless you set `WorkingWeekdays`. Without a `Calendar` every day is a working day. The
+exception is a `Calendar` that sets only `WeekStart` and/or `FiscalYearStartMonth`: it shapes the
+timeline header and leaves every day a working day (see [Localization](#localization)).
 
 ### Zoom
 
@@ -360,6 +362,185 @@ Hooks run synchronously: return `false` to cancel. A returned Promise does not c
 Each hook receives one object: `beforeTaskUpdate` gets `{ task, updates }` and `beforeTaskAdd`
 gets `{ input, parentId }`. `beforeTaskUpdate` runs for every edit path: drag, resize, progress
 drag, the edit dialog, inline edits, the keyboard and `UpdateTaskAsync`.
+
+## Localization
+
+From Blazor-ApexGantt 1.6.0 (which bundles apexgantt 3.23.1), a chart can be translated as a whole
+with a bundled locale pack, and its timeline header can follow the week start and fiscal year your
+users plan in. Everything lives under `GanttOptions.Locale` and `GanttOptions.Calendar`.
+
+### Locale packs
+
+A locale pack sets a whole language at once: every message, the date names, the timeline header's
+word order, how read-only dates are shown and the week start. Name a bundled pack with
+`LocaleOptions.Pack`:
+
+```csharp
+var options = new GanttOptions
+{
+    InputDateFormat = "YYYY-MM-DD",
+    Locale = new LocaleOptions { Pack = "ja" },
+};
+```
+
+`"ja"` (Japanese) is the one bundled pack. It ships as
+`_content/Blazor-ApexGantt/js/locales/ja.es.min.js` (about 2.8 KB gzip) and is loaded the first
+time a chart names it, so charts without a pack never download it. A name that is not bundled logs
+a console warning and the chart renders in English. Setting `Pack` back to null and calling
+`UpdateOptionsAsync()` returns a live chart to English.
+
+The `ja` pack gives the chart `lang="ja"`, translates all 123 messages, shows dates in the task list
+and tooltips as `YYYY/MM/DD` (`YYYY/MM/DD HH:mm` when `InputDateFormat` has a time), starts weeks on Monday and writes the header in Japanese word order:
+`2026年` over `第1四半期` (or `1Q` in narrow cells) zoomed out, `2025年12月` over `12/29～` at week
+zoom, `2025年12月29日～` over `29(月)` at day zoom.
+
+The pack is the base layer. Every other `LocaleOptions` property wins over the pack's value, and
+`Calendar.WeekStart` and `Calendar.FiscalYearStartMonth` win over the pack's:
+
+```csharp
+Locale = new LocaleOptions
+{
+    Pack = "ja",
+    Messages = new() { ["addTask"] = "追加" },        // one message, the rest stay the pack's
+    TimelineHeaderFormat = new TimelineHeaderFormat
+    {
+        Week = new() { Sub = "M/D～{end:M/D}" },        // one row, the rest stay the pack's
+    },
+},
+Calendar = new CalendarOptions { WeekStart = 0 },     // Sunday weeks instead of the pack's Monday
+```
+
+| `LocaleOptions` property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Pack` | `string?` | `null` | A bundled pack by name (`"ja"`). Loaded on demand; an unknown name logs a warning and is ignored. |
+| `Tag` | `string?` | `null` (the pack's) | BCP 47 tag such as `"ja-JP"`: the chart root's `lang`, plural rules and number formatting in message templates, and the collation used to sort and group. A malformed tag (`"ja_JP"`) is ignored. |
+| `Direction` | `TextDirection?` | `null` (the pack's, else `Ltr`) | `Rtl` mirrors the timeline and moves the task list to the right. |
+| `DisplayDateFormat` | `string?` | `null` (the pack's, else `InputDateFormat`) | dayjs pattern for read-only dates in the task list and tooltips. Editors keep `InputDateFormat`. |
+| `CrosshairFormat` | `GanttCrosshairFormat?` | `null` | Crosshair label patterns: `Date` (default `"ddd MM/DD/YYYY"`) and `Time` (default `"MM/DD HH:mm"`). |
+| `Messages` | `Dictionary<string, string>?` | `null` | Message overrides by key, merged over the pack's. |
+| `TimelineHeaderFormat` | `TimelineHeaderFormat?` | `null` | Header labels per tier and row, merged over the pack's. |
+
+### Messages
+
+`Messages` overrides any of the chart's strings by key: toolbar, context menu, task form and
+validation, tooltip labels, column titles, durations, filter operators and every aria-label. Since
+apexgantt 3.22 every key takes a string, the seven that used to be functions included
+(`editTaskTitle`, `groupCountLabel`, `filterOperatorLabel`, `summaryAriaLabel`, `barAriaLabel`,
+`barAriaValueText`, `progressAriaLabel`). A `{name}` in a template is filled with that parameter,
+and `{n, number}` and `{n, plural, one {...} other {...}}` format in the chart's `Tag`:
+
+```csharp
+Messages = new()
+{
+    ["addTask"] = "Ajouter une tâche",
+    ["editTaskTitle"] = "Modifier : {name}",
+    ["columnName"] = "Tâche",
+    ["tooltipStartLabel"] = "Début :",
+},
+```
+
+The keys and their English defaults are listed in the
+[ApexGantt localization docs](https://github.com/apexcharts/apexgantt#localization--rtl). Messages
+are inserted without escaping, so never put untrusted input in them.
+
+### Timeline header formats
+
+`TimelineHeaderFormat` replaces the header labels one tier and row at a time. The header has a top
+(coarse) row and a sub (fine) row, each drawn from one of eight tiers: `Minute`, `Hour`, `HalfDay`,
+`Day`, `Week`, `Month`, `Quarter` and `Year`. Which tiers show depends on the zoom (`PixelsPerDay`):
+
+| Zoom (`PixelsPerDay`) | Top row | Sub row |
+| --- | --- | --- |
+| under about 0.9 | none | `Year.Sub` |
+| about 0.9 to 2.6 | `Year.Top` | `Quarter.Sub` |
+| about 2.6 to 11.4 | `Year.Top` | `Month.Sub` |
+| about 11.4 to 42 (week zoom is 25.7) | `Month.Top` | `Week.Sub` |
+| 42 to 400 (day zoom is 80) | `Week.Top` | `Day.Sub` |
+| 400 to 1920 | `Day.Top` | `HalfDay.Sub` |
+| 1920 to 7680 | `Day.Top` | `Hour.Sub` |
+| 7680 and over | `Hour.Top` | `Minute.Sub` |
+
+A row (`Top` or `Sub`) is a `TimelineHeaderLabelFormat`, and you assign one of three forms directly:
+
+- **a pattern string**, a dayjs format used at every cell width (`"YYYY年M月"`). Wrap Latin text in
+  square brackets (`"[Wk] w"`); CJK text such as 年, 月 and 週 needs none. `{end:PATTERN}` formats the
+  cell's last instant, `{fy}` is the fiscal year and `{fq}` the fiscal quarter. `YYYY` and `Q` stay
+  calendar-based.
+- **an array or list of `TimelineHeaderLabelCandidate`**, each a `Format` with an optional
+  `MinWidth` in px. The chart sorts them widest-first and uses the first whose `MinWidth` fits the
+  cell, so a row can shorten itself in narrow cells.
+- **a `JsFunction`**, JavaScript source for `(date, ctx) => string`, called for every cell. `ctx`
+  carries `cellWidth`, `week`, `quarter`, `fiscalYear`, `fiscalQuarter`, `fiscal` and a
+  `format(pattern, date?)` helper. Like the tooltip templates, it runs in the browser's global
+  scope.
+
+```csharp
+TimelineHeaderFormat = new TimelineHeaderFormat
+{
+    Year = new() { Top = "YYYY年", Sub = "YYYY年" },
+    Quarter = new()
+    {
+        Sub = new TimelineHeaderLabelCandidate[]
+        {
+            new(96, "第{fq}四半期"),   // cells 96 px and wider
+            new("{fq}[Q]"),            // narrower cells
+        },
+    },
+    Month = new() { Top = "YYYY年M月", Sub = "M月" },
+    Week = new() { Top = "YYYY年M月D日～", Sub = "M/D～" },
+    Day = new() { Sub = JsFunction.From("(date, ctx) => ctx.cellWidth >= 64 ? ctx.format('D(ddd)') : ctx.format('D')") },
+
+    // used instead of the rows above only while a fiscal year is in use
+    Fiscal = new() { Year = new() { Top = "{fy}年度", Sub = "{fy}年度" } },
+},
+```
+
+The narrow quarter label is written `"{fq}[Q]"` on purpose: a bare `Q` is the calendar quarter
+token, so `"{fq}Q"` prints `11`, `22`. Labels are HTML-escaped before they render. Rows left null
+keep the built-in labels, and `Minute.Top`, `HalfDay.Top` and `Quarter.Top` never render.
+
+### Week start and fiscal year
+
+| `CalendarOptions` property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `WeekStart` | `int?` | `null` (the pack's, else Sunday) | First day of the week, 0 (Sunday) to 6 (Saturday). Week cells and week numbers follow it. |
+| `FiscalYearStartMonth` | `int?` | `null` (calendar years) | First month of the fiscal year, 1 to 12. Quarter and year cells start on fiscal boundaries, built-in labels read `FY2026` and `#1 Apr-Jun`, and the `Fiscal` rows of `TimelineHeaderFormat` apply. |
+
+A fiscal year is in use whenever `FiscalYearStartMonth` is set to a valid month, **1 included**:
+`1` keeps calendar-aligned cells but labels them as fiscal periods (`FY2026`, or `2026年度` with the
+`ja` pack). Leave it null for calendar years. A fiscal year is named by the calendar year it starts
+in, so with `4` the year from April 2026 to March 2027 is `2026年度`.
+
+The `ja` pack sets no fiscal year, so on its own it shows calendar years. For 年度 planning add
+the fiscal year yourself; April is right for most Japanese organizations:
+
+```csharp
+Locale = new LocaleOptions { Pack = "ja" },
+Calendar = new CalendarOptions { FiscalYearStartMonth = 4 },  // 2026年度 = April 2026 to March 2027
+```
+
+| `FiscalYearStartMonth` | Year row (`ja`) | Quarter row (`ja`) |
+| --- | --- | --- |
+| `null` | `2026年` (January to December) | `第1四半期` (January to March) |
+| `4` | `2026年度` (April 2026 to March 2027) | `第1四半期` (April to June) |
+| `1` | `2026年度` (January to December) | `第1四半期` (January to March) |
+
+While a fiscal year is in use, each tier and row takes the first of: your
+`TimelineHeaderFormat.Fiscal`, your `TimelineHeaderFormat`, the pack's fiscal rows, the pack's rows,
+then the built-in fiscal labels. A row you set yourself therefore wins over every row of the pack.
+
+**A calendar with only `WeekStart` and `FiscalYearStartMonth` does not turn the working calendar
+on.** Properties left null are not sent, so `new CalendarOptions { FiscalYearStartMonth = 4 }`
+reaches the chart as a header-only calendar: weekends stay unshaded, durations count calendar days
+and drags do not snap. Set any other property (`WorkingWeekdays`, `Holidays`,
+`ShowNonWorkingStripes`, `DragSnapMode`, `HolidayTooltip`) and the working calendar turns on, with
+a Monday to Friday week unless `WorkingWeekdays` says otherwise.
+
+On a live chart, `Calendar` is replaced as a whole by `UpdateOptionsAsync()`: set
+`FiscalYearStartMonth` to null to turn the fiscal year off, or `Calendar` to null to remove the
+calendar. An empty `new CalendarOptions()` turns the working calendar on.
+
+The sample app's Localization page shows the `ja` pack with a 年度 toggle.
 
 ## Ignite UI Theming
 
@@ -644,6 +825,7 @@ The repository includes a comprehensive sample application showcasing all featur
 - **Dependencies Demo** - Task dependency arrows and relationships
 - **Milestones & Tooltips Demo** - Diamond milestones and custom HTML tooltips
 - **Advanced Demo** - Complete project timeline with all features combined
+- **Localization** - The bundled Japanese locale pack with a 年度 (fiscal year) toggle
 
 Run the demo:
 

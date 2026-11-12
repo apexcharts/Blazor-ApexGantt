@@ -1,0 +1,108 @@
+@page "/localization-demo"
+@using Blazor_ApexGantt.Components
+@using Blazor_ApexGantt.Models
+
+<PageTitle>Localization Demo</PageTitle>
+
+<h1>ApexGantt Localization Demo</h1>
+<p>
+    The bundled Japanese pack, chosen by name with <code>Locale = new LocaleOptions { Pack = "ja" }</code>:
+    translated toolbar, task list, tooltips and dialogs, Japanese header word order, Monday weeks and
+    <code>YYYY/MM/DD</code> dates. The pack sets no fiscal year, so the year row reads <code>2025年</code> and <code>2026年</code>.
+    Tick <b>年度 (4月始まり)</b> to add <code>FiscalYearStartMonth = 4</code> and it reads
+    <code>2025年度</code> (April 2025 to March 2026) and <code>2026年度</code>.
+</p>
+
+<div class="mb-3 d-flex flex-wrap gap-4">
+    <label class="form-check-label">
+        <input type="checkbox" class="form-check-input me-1" id="chk-fiscal"
+               checked="@fiscalYear" @onchange="ToggleFiscalYear" />
+        年度 (4月始まり)
+    </label>
+    <label class="form-check-label">
+        <input type="checkbox" class="form-check-input me-1" id="chk-weekends"
+               checked="@workingCalendar" @onchange="ToggleWorkingCalendar" />
+        土日を非稼働日にする (working calendar)
+    </label>
+</div>
+<p class="text-muted small">
+    A calendar that sets only <code>WeekStart</code> and <code>FiscalYearStartMonth</code> shapes the
+    header and leaves every day a working day, so the weekends stay unshaded until the second box
+    turns the working calendar on.
+</p>
+
+<div class="mb-4">
+    <ApexGantt @ref="gantt" Options="@options" Tasks="@tasks" />
+</div>
+
+@code {
+    private ApexGantt? gantt;
+    private bool fiscalYear;
+    private bool workingCalendar;
+    private GanttOptions options = default!;
+
+    protected override void OnInitialized()
+    {
+        options = new GanttOptions
+        {
+            Width = "100%",
+            Height = "440px",
+            InputDateFormat = "YYYY-MM-DD", // matches how the wrapper writes DateTime values
+            PixelsPerDay = 5,               // years over months; zoom in for weeks and days
+            EnableTaskCRUDToolbar = true,
+            EnableContextMenu = true,
+            EnableTaskEdit = true,
+            Locale = new LocaleOptions { Pack = "ja" },
+            Calendar = BuildCalendar(),
+        };
+    }
+
+    // WeekStart = 1 repeats the pack's Monday week, and keeps the calendar from ever being empty:
+    // an empty CalendarOptions turns the working calendar on, and a null one is left out of the
+    // update, so the chart would keep the calendar it had.
+    private CalendarOptions BuildCalendar() => new()
+    {
+        WeekStart = 1,
+        FiscalYearStartMonth = fiscalYear ? 4 : null,
+        ShowNonWorkingStripes = workingCalendar ? true : null,
+    };
+
+    private async Task ToggleFiscalYear(ChangeEventArgs e)
+    {
+        fiscalYear = e.Value is true;
+        options.Calendar = BuildCalendar();
+        await gantt!.UpdateOptionsAsync();
+    }
+
+    private async Task ToggleWorkingCalendar(ChangeEventArgs e)
+    {
+        workingCalendar = e.Value is true;
+        options.Calendar = BuildCalendar();
+        await gantt!.UpdateOptionsAsync();
+    }
+
+    private List<GanttTask> tasks = new()
+    {
+        new GanttTask { Id = "p1", Name = "設計フェーズ", Progress = 60 },
+        new GanttTask
+        {
+            Id = "t1", Name = "調査", ParentId = "p1", Progress = 100,
+            StartTime = new DateTime(2025, 12, 29), EndTime = new DateTime(2026, 1, 12),
+        },
+        new GanttTask
+        {
+            Id = "t2", Name = "モックアップ", ParentId = "p1", Progress = 70,
+            StartTime = new DateTime(2026, 1, 13), EndTime = new DateTime(2026, 2, 2),
+        },
+        new GanttTask
+        {
+            Id = "t3", Name = "開発", Progress = 25,
+            StartTime = new DateTime(2026, 2, 3), EndTime = new DateTime(2026, 4, 7),
+        },
+        new GanttTask
+        {
+            Id = "m1", Name = "リリース", Type = TaskType.Milestone,
+            StartTime = new DateTime(2026, 4, 8),
+        },
+    };
+}

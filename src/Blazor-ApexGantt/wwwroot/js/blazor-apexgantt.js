@@ -86,6 +86,76 @@ function parseOptions(optionsJson) {
   return reviveFunctions(JSON.parse(optionsJson));
 }
 
+// First-party locale packs bundled with the package, by the name LocaleOptions.Pack takes.
+// Each is plain data in its own ES module, imported the first time a chart names it.
+const LOCALE_PACKS = {
+  ja: "./locales/ja.es.min.js?ver=3.23.1",
+};
+
+// pending or settled import of each pack (resolves to the pack object, or null on failure)
+const packLoads = {};
+
+// unknown pack names already warned about, so an update does not repeat the warning
+const warnedPacks = new Set();
+
+// .NET leaves a null property out of the JSON, and the core keeps any locale key, and the
+// calendar, that an update leaves out. The component sends the whole Options every time, so a
+// key that is missing is null on the .NET side: clear it, or setting Pack (or Calendar) back to
+// null would leave the chart in Japanese (or on its fiscal year). `direction` is left alone:
+// the core tracks it separately.
+const CLEARABLE_LOCALE_KEYS = ["pack", "tag", "displayDateFormat", "crosshairFormat", "messages", "timelineHeaderFormat"];
+
+function clearOmittedOptions(options) {
+  const locale = (options.locale ??= {});
+  for (const key of CLEARABLE_LOCALE_KEYS) if (!(key in locale)) locale[key] = undefined;
+  if (!("calendar" in options)) options.calendar = undefined;
+}
+
+function loadLocalePack(name) {
+  if (!packLoads[name]) {
+    packLoads[name] = import(LOCALE_PACKS[name]).then(
+      (module) => module[name] ?? module.default ?? null,
+      (error) => {
+        console.error(`apexgantt: could not load the "${name}" locale pack:`, error);
+        // forget the failure, so the next chart that names the pack tries again
+        delete packLoads[name];
+        return null;
+      }
+    );
+  }
+  return packLoads[name];
+}
+
+/**
+ * The core takes `locale.pack` as an object only. .NET names a bundled pack with a string, so
+ * swap the name for the pack object, in place. Returns null when there is nothing to wait for
+ * (no pack, or a name that is not bundled, which is warned about and dropped), else a promise,
+ * so a chart without a pack is still created synchronously.
+ */
+function resolveLocalePack(options) {
+  const locale = options?.locale;
+  const name = locale?.pack;
+  if (typeof name !== "string") return null;
+
+  const key = name.trim().toLowerCase();
+  if (!Object.prototype.hasOwnProperty.call(LOCALE_PACKS, key)) {
+    if (!warnedPacks.has(name)) {
+      warnedPacks.add(name);
+      console.warn(
+        `apexgantt: no bundled locale pack is named "${name}", so it is ignored. ` +
+          `Bundled packs: ${Object.keys(LOCALE_PACKS).join(", ")}.`
+      );
+    }
+    delete locale.pack;
+    return null;
+  }
+
+  return loadLocalePack(key).then((pack) => {
+    if (pack) locale.pack = pack;
+    else delete locale.pack;
+  });
+}
+
 function chartOf(elementId) {
   const chart = instances[elementId];
   if (!chart) throw new Error(`ApexGantt instance not found: ${elementId}`);
@@ -125,7 +195,9 @@ export function loadIgniteUI() {
   return igniteUILoad;
 }
 
-export function init(elementId, optionsJson, dotNetRef) {
+// Async only so a named locale pack can be awaited: without one, nothing is awaited and the
+// chart is created before init returns, as before.
+export async function init(elementId, optionsJson, dotNetRef) {
   try {
     const element = document.getElementById(elementId);
     if (!element) {
@@ -134,6 +206,12 @@ export function init(elementId, optionsJson, dotNetRef) {
     }
 
     const options = parseOptions(optionsJson);
+    const packLoad = resolveLocalePack(options);
+    if (packLoad) {
+      await packLoad;
+      // the component may have been disposed while the pack loaded
+      if (!element.isConnected) return false;
+    }
 
     // resolve percentage/auto width to actual pixels against the container
     if (
@@ -174,8 +252,12 @@ export function init(elementId, optionsJson, dotNetRef) {
   }
 }
 
-export function update(elementId, optionsJson) {
-  chartOf(elementId).update(parseOptions(optionsJson));
+export async function update(elementId, optionsJson) {
+  const options = parseOptions(optionsJson);
+  const packLoad = resolveLocalePack(options);
+  if (packLoad) await packLoad;
+  clearOmittedOptions(options);
+  chartOf(elementId).update(options);
 }
 
 export function destroy(elementId) {
